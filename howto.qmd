@@ -1,0 +1,1939 @@
+---
+title: "Geospatial small area estimation^[The development of this guide was supported by ESCAP's project on Big Data for Official Statistics, funded by the 2030 Agenda Sub-Fund of the UN Peace and Development Trust Fund. Throughout this guide, we sometimes use maps to visualize both geospatial data and outcomes. The boundaries and names shown and the designations used on these maps do not imply official endorsement or acceptance by the United Nations.]"
+subtitle: "A how-to guide"
+author: 
+    - name: Haoyi Chen^[UNSD]
+      affiliations:
+        - name: UNSD
+    - name: Joshua D. Merfeld^[University of Queensland and IZA]
+      affiliations:
+        - name: University of Queensland and IZA
+    - name: David Newhouse^[World Bank and IZA]
+      affiliations:
+        - name: World Bank and IZA
+    - name: Richard Pearce Tonkin^[ESCAP]
+      affiliations:
+        - name: ESCAP
+format: 
+  # html:
+  #   toc: true
+  #   number-sections: true
+  #   colorlinks: true
+  #   code-line-numbers: true
+  #   fig-cap-location: top
+  #   comments:
+  #     hypothesis: true
+  pdf:
+    toc: true
+    number-sections: true
+    colorlinks: true
+    code-line-numbers: true
+    fig-cap-location: top
+bibliography: bib.bib
+execute:
+  echo: false
+  warning: false
+  error: false
+  message: false
+header-includes:
+  - \usepackage{pdflscape}
+  - \usepackage{placeins}
+  - \usepackage{fvextra}
+  - \DefineVerbatimEnvironment{Highlighting}{Verbatim}{breaklines,commandchars=\\\{\}}
+include-before-body:
+  text: | 
+    \RecustomVerbatimEnvironment{verbatim}{Verbatim}{
+      showspaces = false,
+      showtabs = false,
+      breaksymbolleft={},
+      breaklines
+      % Note: setting commandchars=\\\{\} here will cause an error 
+    }
+---
+
+```{r}
+#| label: setup
+#| echo: false
+library(knitr)
+knitr::opts_chunk$set(fig.align="center", size="footnotesize", dev = "png", dev.args = list(type = "cairo-png"))
+knitr::knit_hooks$set(crop = knitr::hook_pdfcrop)
+
+library(tidyverse)
+library(terra)
+library(tidyterra)
+library(cowplot)
+library(povmap)
+library(glmnet)
+library(haven)
+library(fixest)
+library(kableExtra)
+library(moments)
+
+Sys.setenv("RETICULATE_PYTHON" = paste0(getwd(), "/howto-venv/bin/python"))
+library(reticulate)
+use_virtualenv(paste0(getwd(), "/howto-venv"), required=TRUE)
+
+unblue <- "#5b92e5"
+
+
+# Notes:
+# - Make step-by-step guide align more with the primer
+
+```
+
+\newpage
+# Introduction
+
+Small area estimation (SAE) refers to a set of statistical methods that enable statisticians to create estimates for outcomes of interest at levels of aggregation when sample sizes are too small to generate reliable direct estimates. “Small area” typically refers to administrative or other geographic areas. However, it can also refer to subpopulations for which sample sizes are too small for reliable parameter estimation. 
+
+SAE has been undergoing active development for several decades [@ghosh2020small], with several books written on the topic (the book by @rao2015small is a particularly good starting point). While there are many different implementations of SAE, all methods have a similar intuition. In all cases, the basic idea is to “augment” survey data using auxiliary data that is predictive of the outcome.
+
+For more information on different SAE methods and their implementation for official statistics, you can explore the SAE4SDGs wiki available here: https://unstats.un.org/wiki/spaces/SAE4SDG/overview 
+
+## Small area estimation with geospatial data
+
+Traditionally, SAE has relied on unit-level census data or high-quality administrative data that covers the entire population of interest, not just the surveyed areas. When available, such data can be highly predictive of many outcomes of interest, including poverty, unemployment, and other SDGs. However, a key problem many countries face is that they either do not have access to such data or it is out of date. This raises an important question: if we do not have access to administrative data, what data can we use that is: 
+
+1. Predictive of the outcome of interest?
+2. Available for all population areas throughout all areas of interest?
+
+Geospatial data, derived from satellite imagery and other Earth Observation systems, is one such data source that meets these requirements. 
+Advantages of geospatial data for SAE include:
+
+- Global availability, including in data-scarce regions;
+- High update frequency, often annually or more;
+- Predictive strength for poverty and related outcomes (e.g., NDVI, nightlights, population density).
+
+However, geospatial data is not without its challenges. First and foremost, many policymakers and employees in national statistics offices are not used to using geospatial data. In other words, there can be a relatively steep learning curve to using geospatial data, especially when it comes to accessing data through APIs and using alternative programming languages (principally R and Python).
+A [Primer on Small Area Estimation with Geospatial Data](https://unstats.un.org/UNSDWebsite/statcom/session_56/documents/BG-3p-Geospatial_SAE_Primer-E.pdf) has been developed which provides a general overview and practical suggestions for using geospatial data in small area estimation (SAE). It discusses commonly used geospatial variables and publicly available repositories for this type of data.
+
+
+## About this guide
+
+This guide provides a step-by-step walkthrough of using geospatial data to perform small area estimation in R.
+
+The guide is designed to complement the Primer mentioned above by focusing on the practical aspects of implementation. To support hands-on learning, code chunks are included throughout. Readers are encouraged to copy and run the code to run on their own computer while following the guide. To facilitate this, it is recommended to use the HTML version of this guide, available on the GitHub repository. This repository also contains all the necessary data. 
+
+Throughout this guide, we will be using data from Northern Malawi. The survey data come from the [Fifth Integrated Household Survey (IHS5)](https://microdata.worldbank.org/index.php/catalog/3818), which is only considered representative at the district (admin 2) level. Our final goal will be to estimate poverty at the admin 3 level for Northern Malawi, which is not possible with the raw survey data – many admin 3 areas have no survey observations at all and those that do tend to have a small sample size.
+
+To do this, we have three different options. First, we could estimate the model at the household level, connecting the survey data to the geospatial data. Second, we could estimate the model at the admin 4 (enumeration area (EA) in the case of Malawi) level, aggregating the survey data to the admin 4 level and pulling geospatial data at the same level. A final option is to create a grid that covers all of Northern Malawi, and aggregate all data to the grid level in order to estimate poverty. By the end of this guide, we hope you have the tools in order to estimate any one of the three options. 
+
+In practice, which option you choose often depends on the shapefiles available to you. For example, if you do not have household geocoordinates (GPS longitude/latitude) but you do have an admin identifier you can use to match to a shapefile, you would not be able to estimate a model at the grid level, but you could estimate a household-level model and then aggregate estimates up. Similarly, if you do not have shapefiles at the admin 4 level, you would not be able to estimate a model at that level, but might be able to estimate a household- or grid-level model.
+
+While the guide uses example data for Malawi, the approach and code can be adapted to other countries and contexts. The examples assume a basic understanding of R, but the code is fully annotated for users to modify and build upon.
+
+For brevity, we will not go into detail on `R` itself – except as it applies to the specific tasks at hand. In other words, we assume readers have a basic understanding of R and its syntax. While we will be showing all of the code we use, we will not always explain details of the syntax. The guide will also not go into detail on the theory of small area estimation – to learn more about this, it is suggested to refer to the SAE4SDGs wiki and the other references highlighted above.
+
+
+
+## Structure of the guide
+
+The initial sections of this guide go through the basic packages we will be using in `R` as well as the different types of data required for geospatial SAE. . In @sec-R, we discuss the setup of `R` and the packages that we will use, including the integrated development environment (IDE) we will use (`RStudio`, @sec-Rsetup), as well as all packages that we will use in this guide (@sec-Rpackages). 
+
+We then turn to the different data formats: shapefiles (vector files) and rasters. Geospatial data are usually stored in formats that some users may not have seen, let alone used, before. As such, we spend substantial time discussing these data formats and learning how to work with them in `R`. In @sec-vectorfiles, we discuss how to read and plot vector files -- which we generally refer to as shapefiles in the present context -- as well as where to find them. We will be using the `R` package `terra` for both shapefiles and rasters. In @sec-rasters, we discuss how to read and plot rasters, as well as how to extract raster data into shapefiles. We will also discuss how to create grids if a shapefile is not available but we have GPS coordinates in the survey data.
+
+There are specific requirements for the survey data in order to be able to match the survey to geospatial data. In @sec-surveydata, we discuss how to perform this matching, as well as the steps to prepare the survey. 
+
+We then turn to a discussion of choosing which predictors to use in an SAE model. The workhorse SAE models nowadays tend to be linear models, meaning we need to be cautious about including too many predictors, both to prevent overfitting (predicting "noise" in the data) as well as to simply be able to estimate the model (if there are more predictors than there are observations, estimation is not possible). As such, in @sec-features, we discuss how to choose features, create new features, and think about transformations. We will also discuss how to use the `glmnet` package to perform lasso for feature selection.
+
+We then turn to the estimation of SAE models. In @sec-estimating, we discuss how to estimate the model using the `povmap` package, as well as how to specify options, verify assumptions, and evaluate results.
+
+Finally, in @sec-mapping, we discuss how to map poverty using the estimates we have obtained. We will create tables and maps to visualize the results.
+
+You can find all of the code and data used on the GitHub repository for this guide, [here](https://github.com/JoshMerfeld/geospatialSAEhowto).
+
+
+
+
+
+
+
+\FloatBarrier
+\newpage
+# R setup {#sec-R}
+
+Before following this guide, you should have `R` already installed on their computer. If you do not, you can download `R` [here](https://cran.r-project.org/).
+
+To get started, it is *strongly* suggested that you create a new folder on their computer, where you can save the scripts (@sec-Rsetup), any data you download, and any outputs you create. This will help keep everything organized and make it easier to find files in the future. This will also make it easier to complete this guide, as you can easily stop and resume at a later point in time.
+
+If you want to follow the exact steps in this guide, you should also create a `data` subfolder in your new folder. Inside the `data` folder, you will store all of the downloaded data from GitHub. However, you will want the working directory to always be set to the main folder, *not* the `data` folder.
+
+
+## RStudio {#sec-Rsetup}
+
+The main goal is to use `R` to perform small area estimation with geospatial data. As part of this, we will be using  `RStudio`, a free and open-source integrated development environment for `R`. While it is not strictly necessary to use `RStudio`, it has a variety of features that make it easier to work with `R`, especially for people just learning the language. You can download `RStudio` [here](https://www.rstudio.com/products/rstudio/download/).^[There are many alternative IDEs. For example, [Visual Studio Code](https://code.visualstudio.com/) has an `R` extension that can be used to write and run `R` code. Other IDEs include [Jupyter](https://jupyter.org/) and [Positron](https://github.com/posit-dev/positron), the latter of which is still under development. However, we will not cover any of these alternatives in this guide.]
+
+A key feature of IDEs is the ability to run code from a script. A script is essentially a text file that includes only the code you want to run. Scripts are particularly useful for reproducibility, as they allow you to save all of the code you have written and run it again at a later time. In `RStudio`, you can create a new script by clicking on `File` > `New File` > `R Script`. 
+
+After writing code, you can run it by clicking on the `Run` button in the top right corner of the script window or by using the appropriate shortcut.^[On Windows, the default shortcut is `Ctrl` + `Enter`. On Mac, the default shortcut is `Cmd` + `Enter`.] You can run a single line of code by placing your cursor on that line and using the shortcut. Additionally, you can highlight multiple lines of code and run them all in the same fashion. An important note: if you want to highlight multiple lines of code to run, you *must* highlight the whole of each line; if you only highlight part of a line, the code will not run.
+
+An important complement to creating new folders and a new script is to have your working directory set to that folder, as well. There are several ways to do this:
+
+1. If RStudio is *closed*, opening the script from within the folder will automatically set the working directory to that folder (the location of the script).
+2. If RStudio is *open*, you can set the working directory by clicking on `Session` > `Set Working Directory` > `To Source File Location`. This will set the working directory to the location of the script.
+3. You can also set the working directory using the `setwd()` function. For example, if you have a folder called `geospatialSAE` on your desktop, you can set the working directory to that folder using `setwd("~/Desktop/geospatialSAE")`, or something similar, depending on your machine's file structure. In general, we suggest not doing this in your script. The reason for this is simple: if you share your script with someone else, the working directory will not be the same for them as it is for you. Instead, we suggest using the first two methods, which are more reproducible.
+
+
+
+## Packages {#sec-Rpackages}
+
+We be using the following packages in this guide:
+
+- `tidyverse`
+- `terra`
+- `tidyterra`
+- `povmap`
+- `glmnet`
+- `haven`
+
+To get started, you will need to install these packages. You can do this by running the following code:
+
+\small
+```{r}
+#| echo: true
+#| eval: false
+install.packages(c("tidyverse", "terra", "tidyterra", "povmap", "glmnet", "haven"))
+```
+\normalsize
+
+You only need to install packages once on any given computer. As such, you do not necessarily need to have these in your script; you can instead install them in the console.
+
+However, while you only need to install the packages once, you will have to load them every time you start a new `R` session. This is done using the `library()` function, as follows:^[Note the use of a hashtag (\#) to create a comment on line 1. This causes `R` to ignore the line, so it will not be run. Such comments are used to provide context to the reader.]
+
+\small
+```{r}
+#| echo: true
+#| eval: false
+# Load libraries
+library(tidyverse)
+library(terra)
+library(tidyterra)
+library(povmap)
+library(glmnet)
+library(haven)
+```
+\normalsize
+
+It is common practice to always start `R` scripts by loading the libraries you will be using. This way, you can be sure all of the functions you need are available.
+
+
+
+\FloatBarrier
+\newpage
+# Vector files {#sec-vectorfiles}
+
+Vector files are one of the most common formats for geospatial data and these are commonly referred to as "shapefiles" in the geospatial context.^[Vector files do not exist only in a geospatial context. For example, .svg and .pdf files are both vector files.] They are familiar to almost everyone, even users who have not used them directly; shapefiles make up many of the maps you see! Shapefiles are outlines of geographic areas or other features of interest – for example, a shapefile could be the outlines of buildings, although they are more commonly outlines of administrative areas. 
+Shapefiles work by outlining these “polygons” with points. Consider a simple square; you can outline an entire square with just four points. A pentagon would require five points, a hexagon six points, and so on. Shapefiles are just a list of points – or vertices – that outline different features/polygons. 
+It is not the geographic area of the feature *per se* that increases the size of a shapefile (in terms of computer memory); instead, it is the number of vertices needed to outline the shape. Some geographic boundaries are relatively smooth on the edges, which leads to fewer vertices, while others, such as coastlines, are complicated shapes requiring many more vertices. While shapefiles can include descriptive information about each feature – for example, some countries release shapefiles that include census-derived demographic information – it is the geographic nature of shapefiles that make them shapefiles.
+
+\small
+```{r}
+#| label: fig-shapeexample
+#| echo: false
+#| eval: true
+#| fig-cap: "Vertices of shapefile features"
+mw3 <- sf::read_sf("data/mw3.shp")
+mw3 <- mw3[3:2,]
+ex1 <- spatialEco::extract.vertices(mw3[1,])
+ex2 <- spatialEco::extract.vertices(mw3[2,])
+g1 <- ggplot() +
+  geom_sf(data = mw3[1,], fill = NA, color = "gray") +
+  geom_sf(data = ex1, color = "black", size = 0.5) +
+  theme_bw(base_size = 8)
+g2 <- ggplot() +
+  geom_sf(data = mw3[2,], fill = NA, color = "gray") +
+  geom_sf(data = ex2, color = "black", size = 0.5) +
+  theme_bw(base_size = 8)
+plot_grid(g1, g2, labels = c("A.", "B."), label_size = 10)
+```
+\normalsize
+
+Consider the two examples in @fig-shapeexample. Both shapes come from the traditional authority (TA) shapefile for Malawi; the TA is considered the third administrative division (admin3) of the country. Figure A (left panel) has an area of just `r round(expanse(vect(mw3[1,]), unit = "km"), 1)` square kilometers, while Figure B (right panel) has an area of `r round(expanse(vect(mw3[2,]), unit = "km"), 1)` square kilometers. Despite Figure B being more than twice the size, Figure A has `r format(nrow(ex1), big.mark=",")` vertices while Figure B has `r format(nrow(ex2), big.mark=",")` vertices. This is because Figure A is a relatively more complex shape, while Figure B is simpler. If we saved these two individual TAs as shapefiles, A would be much larger than B, despite having a smaller geographic area.
+
+A key feature of shapefiles is that they often consist of many individual *features*. In the case of @fig-shapeexample, the two panels show two separate features from the same shapefile. In this case, the two features are called polygons, since they are enclosed features with multiple sides. However, shapefiles can also include points (e.g. the location of a household), lines (e.g. a road), or even multipolygons (e.g. multiple islands that make up the same TA). In this guide, we will mostly be working with polygons and points.
+
+A final note is that "a shapefile" is a bit of a misnomer. We are referring to a file with the extension `.shp`, but shapefiles are actually a collection of files. The `.shp` file contains the geographic data, but it generally comes with other files that contain different bits of information. In general, you *must* have at least three files to be able to properly read a shapefile: the `.shp` file, the `.shx` file, and the `.dbf` file. A file that is not strictly necessary but is often included is the `.prj` file, which contains information about the projection of the shapefile. If you do not have the `.prj` file, you may need to specify the projection manually when reading the shapefile. If you would like to read more about these different files and the information they contain, there are many short explainers on the internet, including on the [ESRI](https://desktop.arcgis.com/en/arcmap/latest/manage-data/shapefiles/shapefile-file-extensions.htm) and [QGIS](https://docs.qgis.org/3.34/en/docs/gentle_gis_introduction/data_capture.html) websites.
+
+
+## Reading and plotting shapefiles {#sec-readshapefiles}
+
+To read shapefiles in `R`, we will be using the package `terra`. In the data folder on the GitHub repository, there is a shapefile called `mw3.shp`. You will note that there are several other files with the same names, but different extensions. This shapefile contains the traditional authorities (TAs) of Northern Malawi. To read this shapefile, we can use the following code (making sure we first load the library using the `library(terra)` command at the top of the script, as discussed in @sec-Rpackages):
+
+
+\small
+```{r}
+#| echo: true
+#| eval: true
+# Load admin3 shapefile for Malawi
+mw3 <- vect("data/mw3.shp")
+# let's look at the output
+mw3
+```
+\normalsize
+
+This code also loads the `mw3` object on line 4, printing information about the shapefile in the console. Going down the rows, we see the following information:
+
+- `class: SpatVector`: This simply means that we loaded the shapefile using `terra`.
+- `geometry: polygons`: The shapefile includes only polygons; it does not have points or lines.
+- `dimensions: 76, 2 (geometries, attributes)`: The shapefile has 76 separate features and two attributes (or variables/columns). Towards the bottom of the output, we can see the names of the two attributes (`TA_CODE` and `DIST_CODE`), the type of variable (they are both characters, not numbers), and some example values.
+- `extent: 493675.9, 691460, 8591761, 8964834  (xmin, xmax, ymin, ymax)`: The extent of a shapefile refers to coordinates of a box that completely encloses the entire shapefile, sometimes referred to as a "bounding box." @fig-bboxexample in the appendix shows the bounding box, in UN blue, for the shapefile `mw3.shp`. We note that the coordinates in the extent do not look like what we normally think of as coordinates; in other words, they are not in latitude and longitude! Instead, they are in meters. We return to this below, in @sec-crs.
+- `source: mw3.shp`: The name of the shapefile we loaded (as saved on our computer).
+- `coord. ref. : Arc 1950 / UTM zone 36S`: This is the coordinate reference system (CRS). We will discuss this in more detail in @sec-crs.
+
+To plot the shapefile, we will use `ggplot2`, from the `tidyverse` package,^[When you load the library `tidyverse`, it automatically loads several other packages, including `ggplot2`. This means you do not need to load `ggplot2` separately.] and the `geom_spatvector()` function, from the `tidyterra` package.
+
+\small
+```{r}
+#| echo: true
+#| eval: false
+# Figure A
+ggplot() +
+  geom_spatvector(data = mw3)
+# Figure B
+ggplot() +
+  geom_spatvector(data = mw3, color = "black", fill = "white") +
+  theme_bw(base_size = 8)
+```
+\normalsize
+
+The above code produces two separate examples, with very small differences in the code for each. Figure A in @fig-mw3 shows the default theme, with no changes whatsoever. This results in a gray background, a gray "fill" in the features, and a black "outline" of the features. Figure B shows some small changes made for aesthetic reasons.^[This is completely optional and a matter of personal preference.] We have changed the fill to `white`, meaning the interior colors of all the features will be white. In addition, we have used one of the themes built into `ggplot2` -- `theme_bw()` -- which makes changes to the background of the plot.^[You can find the full list of built-in themes [here](https://ggplot2.tidyverse.org/reference/ggtheme.html).]
+
+\small
+```{r}
+#| label: fig-mw3
+#| fig-cap: Traditional Authorities (admin3) in Northern Malawi
+#| echo: false
+#| eval: true
+# Figure A
+g1 <- ggplot() +
+  geom_spatvector(data = mw3) +
+  theme_gray(base_size = 8)
+# Figure B
+g2 <- ggplot() +
+  geom_spatvector(data = mw3, color = "black", fill = "white") +
+  theme_bw(base_size = 8)
+plot_grid(g1, g2, labels = c("A", "B"), label_size = 10)
+```
+\normalsize
+
+
+
+## Coordinate reference systems {#sec-crs}
+
+A core difficulty of showing maps on a two-dimensional surface is that the earth is a sphere.^[The earth is really an *oblate spheroid* (since it bulges at the equator), but thinking of it as a sphere is sufficient for our purposes.] "Projecting" a three-dimensional object onto a two-dimensional surface is inherently challenging. The main difficult is that, in creating a two-dimensional representation, it is impossible to perfectly preserve both the shape and the area of a feature. This is why you sometimes see maps of the globe that look quite different.^[The [QGIS website](https://docs.qgis.org/3.34/en/docs/gentle_gis_introduction/coordinate_reference_systems.html) has several excellent examples of this in section 8.4.]
+
+The most commonly used coordinate system, especially in everyday life, is longitude and latitude. However, this is not technically a projection, since it refers to the location of a point on the sphere of the earth itself. Projections are transformations that convert the three-dimensional shape of the earth onto a flat, two-dimensional plane. There are many different projections, but one of the most common is the Universal Transverse Mercator (UTM). This projection divides the earth into 60 separate "zones," each of which covers six degrees of longitude. Without going into too much detail, one principle difference between UTM and GPS coordinates are that UTM coordinates are in meters, while GPS coordinates are in degrees. This is why the extent of the shapefile `mw3.shp` is in meters, not degrees. Returning to the output above, we can see that the CRS is "UTM zone 36S" -- this is the zone that contains Malawi, the country shown in our shapefile.
+
+In small countries such as Malawi, you will get very similar results whether you use UTM or longitude/latitude when calculating area and/or distances. However, we do observe some differences.
+
+First, let's convert the shapefile to longitude/latitude. To do this, we need the "EPSG" code for the CRS we want to convert to.^[EPSG stands for the European Petroleum Survey Group. That name is now defunct but the acronym continues to be used.] The EPSG code for longitude/latitude is 4326. We can use the `project()` function from the `terra` package to convert the shapefile to longitude/latitude. We are then going to find the area and length of the perimeter using both the UTM projection and the longitude/latitude projection:^[By default, the `expanse` and `perim` functions will return values in square *meters*, not kilometers.]
+
+\small
+```{r}
+#| echo: true
+#| eval: true
+mw3_latlon <- project(mw3, "EPSG:4326")
+# find the area:
+mw3_latlon$area <- expanse(mw3_latlon)
+mw3$area <- expanse(mw3, transform = FALSE)
+# find the length of the perimeter:
+mw3_latlon$perimeter <- perim(mw3_latlon)
+mw3$perimeter <- perim(mw3)
+summary(mw3)
+summary(mw3_latlon)
+```
+\normalsize
+
+How large are the differences? For area, the largest absolute difference is `r round(max(abs((mw3_latlon$area - mw3$area)/mw3_latlon$area))*100, 2)` percent. For the perimeter, the largest absolute difference is `r round(max(abs((mw3_latlon$perimeter - mw3$perimeter)/mw3_latlon$perimeter))*100, 2)` percent. While they are small in Malawi, the differences can be quite large when calculating them for larger areas of the earth. The `terra` package explicitly suggests using longitude/latitude for these calculations; in fact, that is why we have to specify `transform = FALSE` in the `expanse()` function above. By default, `terra` will transform any shapefile into longitude/latitude in order to calculate area.^[In addition, the `perim` function's help-file (`?terra::perim`) explicitly says, "When the coordinate reference system is not longitude/latitude, you may get more accurate results by first transforming the data to longitude/latitude with `project`."]
+
+More importantly, however, is to make sure any spatial objects you are using are in the *same* CRS. While some functions will automatically convert it for you, other will not. For the latter, sometimes it will raise an error (e.g. "They are not in the same CRS. Please project."), while other times it will run but not return the results you are expecting. This is why it is important to always check the CRS of your spatial objects and, as a matter of habit, make sure to transform all spatial objects into the same CRS before performing any spatial analysis. 
+
+For our present purposes, longitude/latitude is fine. We have already seen how to explicitly change the projection using an EPSG code. However, we can also do it using another object. We now have two separate mw3 objects: `mw3` and `mw3_latlon`. Let's project the `mw3` object into the same CRS as the `mw3_latlon` object (which is in longitude/latitude):
+
+\small
+```{r}
+#| echo: true
+#| eval: true 
+mw3 <- project(mw3, crs(mw3_latlon))
+# check
+mw3
+```
+\normalsize
+
+As you can see, the `coord. ref` for `mw3` is now `lon/lat WGS 84 (EPSG:4326)`, which indicates that it is now in longitude/latitude. In addition, you will notice that the extent has changed; it is now in GPS coordinates, instead of meters.
+
+
+## Where can we find shapefiles? {#sec-getshapefiles}
+
+So where can we find shapefiles? Unfortunately, there is no single answer. In many countries, the National Geospatial Information Agency (NGIA) or geospatial or geographic units in another data-related agency may create and disseminate official shapefiles. For example, you can find shapefiles for Korea (down to the admin4) on the Korean National Geographic Institute's website. However, in some countries, these shapefiles are not released publicly.
+
+Another reliable source is the Humanitarian Data Exchange,^[[https://data.humdata.org/](https://data.humdata.org/)] operated by the United Nations Office for the Coordination of Humanitarian Affairs (OCHA). Where necessary, shapefiles can also be found through a simple internet search. However, care should be taken in assessing the source and provenance of such files, particularly when itending to use them for official purposes. 
+
+
+\FloatBarrier
+\newpage
+# Rasters {#sec-rasters}
+
+We generally use shapefiles to outline different types of administrative areas or geographic features. However, shapefiles are rarely used to store data. The reason is simple: memory. Shapefiles are simply not efficient for storing large amounts of data, at least relative to rasters. Nonetheless, it is common to use shapefiles to *extract* data in order to estimate SAE models. For example, in later sections, we will be estimating an SAE model at the EA (admin 4) level in Malawi. This means that we need to aggregate any predictors to the EA level, which we will do using an EA-level shapefile and rasters.
+
+
+```{r}
+#| label: fig-rast
+#| fig-cap: An example raster
+#| echo: false
+#| include: true
+# create example grid
+main <- ggplot() +
+  geom_hline(yintercept = 1:10, color = "black") +
+  geom_vline(xintercept = 1:10, color = "black") +
+  theme_bw(base_size = 8) +
+  labs(x = "X", y = "Y") +
+  scale_x_continuous(breaks = 1:10, minor_breaks = NULL) +
+  scale_y_continuous(breaks = 1:10, minor_breaks = NULL)
+
+ggdraw() +
+  draw_plot(
+    {
+      main +
+        coord_sf(
+          xlim = c(0.99, 10.01),
+          ylim = c(0.99, 10.01),
+          expand = FALSE)
+    }
+)
+```
+
+Rasters are a different type of geospatial data. Instead of outlining polygons with points, rasters are composed of a grid -- each cell of which has a value (or values) -- such as the grid in @fig-rast. If @fig-rast were a shapefile, each individual cell would require five vertices.^[While a square only has four corners, a fifth point is required in order to *close* the feature and create a polygon. In other words, the first and last points are the same point.] But a raster is different. Since each grid cell is the exact same dimensions, we only need to know two things in order to locate *all* of the grid cells in space: A single point at the corner (or the centroid) of the grid, and the dimensions of the grid cells! This makes storing data in rasters much more efficient than storing data in shapefiles. The trade-off, of course, is that each cell is an identical shape, while shapefile features can be any shape.
+
+While we will be dealing with rasters in the context of geospatial data, raster data simply refers to the format in which it is stored. Many common image file formats are also rasters. For example, `.png` and `.jpg` files are both rasters -- the images are composed of many individual grid cells -- though without the geospatial component that we will be using.
+
+## Reading and plotting rasters {#sec-readrasters}
+
+As with shapefiles, we will be reading rasters using the `terra` package. In the data folder on the GitHub repository, you will find a raster file called `ndviexample.tif`. This raster file contains a vegetation index, NDVI, for April of 2019. To read this raster file, we can use the following code:
+
+\small
+```{r}
+#| echo: true
+#| eval: true 
+ndvi <- rast("data/ndviexample.tif")
+# check
+ndvi
+```
+\normalsize
+
+As before, we can print the object (`ndvi`) and inspect some of the summary information. Much of the information is similar to what we saw with the shapefile, but there are some differences.
+
+- `class: SpatRaster`: This simply means that we loaded the raster file using `terra`.
+- `dimensions  : 377, 203, 1  (nrow, ncol, nlyr)`: The raster has 327 rows, 203 columns, and one layer. The "layer" refers to the number of bands -- or variables -- in the raster. In this example, the raster contains just one piece of information: NDVI.
+- `resolution  : 0.008983153, 0.008983153  (x, y)`: The resolution is the size of each grid cell. In this case, the CRS is longitude/latitude, meaning the resolution is in *degrees*, not meters.
+- `name: NDVI`: The names are the names of the layers/bands/variables. Again, there is only one variable in this raster, and its name is `NDVI`.
+
+To plot the raster, we will use `ggplot` and `geom_spatraster`. This function will automatically plot the raster, with a color scale that goes from the minimum to the maximum value in the raster. In this case, our raster has only a single variable, so we do not need to worry ourselves with other specifics for now. We can plot the raster with:
+
+\small
+```{r}
+#| echo: true
+#| eval: false
+# Figure A
+ggplot() +
+  geom_spatraster(data = ndvi)
+# Figure B
+ggplot() +
+  geom_spatraster(data = ndvi) +
+  scale_fill_distiller(palette = "GnBu") +
+  theme_bw()
+```
+\normalsize
+
+```{r}
+#| label: fig_rastpop
+#| fig-cap: NDVI raster for Northern Malawi
+#| echo: false
+#| eval: true
+# Figure A
+g1 <- ggplot() +
+  geom_spatraster(data = ndvi) +
+  labs(subtitle = "A. Default") +
+  theme_gray(base_size = 8)
+# Figure B
+g2 <- ggplot() +
+  geom_spatraster(data = ndvi) +
+  scale_fill_distiller("NDVI", palette = "GnBu") +
+  labs(subtitle = "B. Manual changes") +
+  theme_bw(base_size = 8)
+plot_grid(g1, g2, ncol = 2)
+```
+
+Figure A (left panel) is the most basic raster plot. It includes a blue color scale, with lighter-shade blues indicating higher NDVI values. However, the title of the legend is simply "value."
+
+Figure B (right panel) includes several differences in order to highlight some additional `ggplot` syntax and improve the presentation. First, we change the color scale using `scale_fill_distiller()`. The `palette` argument specifies the color palette; in this case, we use the "GnBu" (green to blue) palette.^[The GnBu palette is a palette from `RColorBrewer`. You can find its palettes [here](https://r-graph-gallery.com/38-rcolorbrewers-palettes.html).] Second, we add a title to the legend, "NDVI," to make it clear that the values refer to NDVI.^[NDVI traditionally ranges between -1 and 1. The values here go up to 10,000 due to the way the data is scaled on Google Earth Engine (which we return to below).] Finally, we again change the base theme to `theme_bw()`.
+
+
+
+
+## Extracting raster data into shapefiles {#sec-extractrasters}
+
+It is worth taking a minute to remember where we want to end up. Our final goal is to estimate a small area model using geospatial data. To do so, we will need to *extract* the raster data into a shapefile; that shapefile could be admin 4 polygons (EAs in the case of Malawi), grid polygons, or household points. In other words, we want the predictors from rasters -- e.g. NDVI or nightlights -- aggregated up to the admin 4 level. In this section, we will show how to extract raster data into a shapefile.
+
+If we want to estimate a model at the admin 4 level, we will extract the raster data into the admin 4 shapefile. This "extraction" process will overlay the raster with the shapefile and find the different "tiles" of the raster that overlap each polygon in the shapefile in order to aggregate them with some chosen function.^[For example, for nightlights, we might decide to aggregate by taking the mean value from the raster tiles that overlap with a given polygon. For population, on the other hand, we would probably want to take the sum.] We can do this using the `extract()` function from the `terra` package. The `extract()` function will take the raster data and extract it into the shapefile. Let's first load the admin 4 shapefile into R, using `vect` from the `terra` package:^[You can find the `adm4.shp` file in the `data` folder.]
+
+\small
+```{r}
+#| echo: true
+#| eval: true
+# load admin4
+mw4 <- vect("data/mw4.shp")
+# print it
+mw4
+```
+\normalsize
+
+Here we see the same kind of output as when we looked at the admin 3 shape file, but with some different values since the admin 4 shapefile has different attributes (and more features). We can see the difference visually in @fig-adm.
+
+The left figure shows the outline of admin 3 areas, while the right figure shows the outline of the admin 4 areas. The admin 4 areas are smaller and more numerous than the admin 3 areas (3,212 features vs. 76 features). Though they cover the same geographic area, the admin 3 shapefile takes up 4.9 MB of memory, while the admin 4 shapefile takes up 40.3 MB. We mention this because larger shapefiles can sometimes lead to memory issues on some computers, especially when extracting data from large rasters.
+
+```{r}
+#| label: fig-adm
+#| fig-cap: Comparing Admin Levels in Northern Malawi
+#| echo: false
+#| eval: true
+g1 <- ggplot() +
+  geom_spatvector(data = mw3, fill = "white") +
+  labs(subtitle = "A. Admin 3") +
+  theme_bw(base_size = 8)
+g2 <- ggplot() +
+  geom_spatvector(data = mw4, fill = "white") +
+  labs(subtitle = "B. Admin 4") +
+  theme_bw(base_size = 8)
+plot_grid(g1, g2, vjust = 0, hjust = -0.6) + 
+  theme(plot.margin = margin(30, 0, 0, 0))
+```
+
+\FloatBarrier
+
+We want to extract the NDVI data into the admin 4 shapefile, such that each feature (geographic area) in the admin 4 shapefile has the average NDVI value for that feature. We can do this using the `extract()` function from the `terra` package, which will create a data frame with the average NDVI for each feature. The code is:
+
+\small
+```{r}
+#| echo: true
+#| eval: true
+# note the order and that we want the MEAN:
+extractedndvi <- extract(ndvi, mw4, fun = "mean")
+head(extractedndvi)
+```
+\normalsize
+
+The `extract()` function takes three arguments: the raster data, the shapefile, and the function to apply. In this case, we want the mean NDVI value for each feature, so we use `fun = "mean"`. The output is a data frame with two columns, but the important point is that the order of rows is identical to the order of rows from the shapefile.^[We use the `head()` function to show just the first six rows of the resulting object.] This means that we can simply add the NDVI values to the shapefile as a new column:
+
+\small
+```{r}
+#| echo: true
+#| eval: true
+mw4$ndvi <- extractedndvi$NDVI
+head(mw4)
+```
+\normalsize
+
+This code takes the column `NDVI` from the `extractedndvi` data and adds it to the `mw4` shapefile as a new column, `ndvi`. We can see the results when looking at the first few rows of `mw4`.
+
+With this data, we can now plot the admin 4 shapefile, explicitly telling `ggplot` to color the features based on their `ndvi` value: 
+
+\small
+```{r}
+#| echo: true
+#| eval: false
+# Figure A
+ggplot() +
+  geom_spatvector(data = mw4, aes(fill = ndvi))
+# Figure B
+ggplot() +
+  geom_spatvector(data = mw4, aes(fill = ndvi), color = NA) +
+  scale_fill_distiller("NDVI", palette = "GnBu") +
+  theme_bw(base_size = 8)
+```
+\normalsize
+```{r}
+#| label: fig-admndvi
+#| fig-cap: Admin 4 Shapefile with NDVI Values
+#| echo: false
+#| eval: true
+# Figure A
+g1 <- ggplot() +
+  geom_spatvector(data = mw4, aes(fill = ndvi)) +
+  labs(title = "A. Default") +
+  theme_gray(base_size = 8)
+# Figure B
+g2 <- ggplot() +
+  geom_spatvector(data = mw4, aes(fill = ndvi), color = NA) +
+  scale_fill_distiller("NDVI", palette = "GnBu") +
+  labs(subtitle = "B. Manual changes") +
+  theme_bw(base_size = 8)
+plot_grid(g1, g2, ncol = 2, vjust = 2.5)
+```
+
+Figure A (left panel) of @fig-admndvi shows the admin 4 shapefile with the NDVI values. The color scale is the defaul. Figure B (right panel) shows the same shapefile, but with several changes. First, since our goal is to present the *fill* color for each admin 4, we set the color of the outline of each feature to be `NA` (i.e. transparent). Figure A is quite difficult to read due to the size of the features relative to the size of the boundary lines. Second, we use `scale_fill_distiller` to change the color scale, again using the green-to-blue scale from before. Finally, we change the base theme to `theme_bw(base_size = 8)`. In our opinion, these changes result in a much more visually appealing figure.
+
+
+ 
+## Creating a shapefile from points {#sec-coordinates}
+
+In the `data` folder, we have created a folder called `ihshousehold`, which contains two separate household-level datasets from the Fifth Integrated Household Survey (IHS5). The first contains consumption aggregates (i.e. expenditures, as well as a poverty measure), while the second contains household geovariables, including geocoordinates.^[We have restricted the data to only Northern Malawi.] For now, we focus on the latter.
+
+To ensure confidentiality, GPS coordinates in publically available datasets are generally never exact; instead, they are *jittered* by a random amount in order to preserve the anonymity of respondents. In other words, the GPS coordinates are not the exact location of the household, but rather a randomly selected point within a certain distance of the true location. Additionally, in this dataset, the coordinates are for the enumeration area (the primary sampling unit) of the survey, which is why multiple households  have the same coordinates.
+
+The household datasets have the .dta extension, which means they are Stata files. We can read these into `R` using the package `haven` and the function `read_dta()`, as follows:
+
+\small
+```{r}
+#| echo: true
+#| eval: true
+# read in dta file
+df <- read_dta("data/ihshousehold/householdgeovariables_ihs5.dta")
+colnames(df)
+```
+\normalsize
+
+The new `df` object is a household-level dataset with many variables (`r ncol(df)`, to be exact). The above code uses `colnames(df)` to display the names of the columns (variables), in order to identify which columns contain the GPS coordinates. In this case, the relevant columns for longitude and latitude are called `ea_lon_mod` and `ea_lat_mod`, respectively, where the "ea" indicates that they are for the enumeration area -- not the household -- and the "mod" indicates that they are modified (jittered). The other important column is the household identifier, which in this case is `case_id`. As we really only need these three variables, we can use `tidyverse` to select only those columns:
+
+\small
+```{r}
+#| echo: true
+#| eval: true
+# Select just the columns we want
+df <- df |>
+  select(case_id, ea_lon_mod, ea_lat_mod)
+# simple summary statistics
+summary(df)
+```
+\normalsize
+
+We have used the `select()` function from the `tidyverse` package to select only the columns we want, using a pipe operator (`|>`) to chain things together. One way to read this code is "take `df` *and then* select these columns. Replace `df` with the new object." 
+
+The `summary()` function gives us some basic summary statistics for the three variables. `case_id` is a character (i.e. a string), while `ea_lon_mod` and `ea_lat_mod` are numeric. However, there appears to be some strange minimum/maximum values for the two variables. We can turn this data into a spatial object using `terra` and then plot the points to look at them more closely.
+
+\small
+```{r}
+#| echo: true
+#| eval: false
+# crs = "EPSG:4326" tells terra the points are longitude/latitude
+df <- vect(df, geom = c("ea_lon_mod", "ea_lat_mod"), crs = "EPSG:4326")
+df
+ggplot() + 
+  geom_spatvector(data = df) +
+  theme_bw(base_size = 8)
+```
+\normalsize
+```{r}
+#| label: fig-points
+#| fig-cap: Household Locations in Northern Malawi
+#| echo: false
+#| eval: true
+# crs = "EPSG:4326" tells terra the points are longitude/latitude
+df <- vect(df, geom = c("ea_lon_mod", "ea_lat_mod"), crs = "EPSG:4326")
+df
+ggplot() + 
+  geom_spatvector(data = df) +
+  theme_bw(base_size = 8)
+```
+
+@fig-points clearly shows that there are some incorrect values in the GPS data! There are some households that have coordinates of (0, 0), which should not be the case since these households clearly fall outside of (Northern) Malawi. For now, we are simply going to remove these from the data:^[Any households with missing (`NA`) coordinates were removed when we transformed the data into a spatial object.]
+
+\small
+```{r}
+#| echo: true
+#| eval: false
+# geom(df) returns coordinates
+# the [,"x"] says "give me the x coordinates"
+# we then check if they are not equal to 0, and only keep those that are
+df <- df[geom(df)[,"x"]!=0,]
+# now plot it
+ggplot() + 
+  geom_spatvector(data = df) +
+  theme_bw()
+```
+\normalsize
+```{r}
+#| label: fig-pointsclean
+#| fig-cap: Cleaned Locations in Northern Malawi
+#| echo: false
+#| eval: true
+#| fig-height: 5
+#| fig-width: 3
+#| fig-align: center
+#| crop: true
+df <- df[geom(df)[,"x"]!=0,]
+# now plot it
+ggplot() + 
+  geom_spatvector(data = df) +
+  theme_bw(base_size = 8)
+```
+
+@fig-pointsclean shows that we have removed those households that had coordinates of (0, 0). We can now use these points to extract information from other shapefiles or other rasters. For example, we might want to get the admin identifiers from the `mw4` shapefile into the points or get NDVI values at the location of households (or near them). 
+
+We can extract information from another *shapefile* by doing a spatial join using `terra`. There are multiple ways to do this, but one is to use the function `extract()`, as follows, noting that the order is polygons first, points second:
+
+\small
+```{r}
+#| echo: true
+#| eval: true
+dfmw4 <- extract(mw4, df)
+dim(dfmw4)
+dim(df)
+```
+\normalsize
+
+Looking at the dimensions (using `dim()`), we see that the new object has the same number of rows as the original `df` object. However, it has more columns since it also has information from the `mw4` shapefile. A key clarification is that the new object, `dfmw4`, is a data frame, not a spatial object. In other words, it does not contain any information relating to the spatial coordinates from the original shapefile or raster, but instead is what you would get if you, for example, loaded a .csv file into `R`. However, the rows are in the same order as the original `df` object, so we can simply add the new columns to the original `df` object:
+
+\small
+```{r}
+#| echo: true
+#| eval: true
+# cbind, excluding the FIRST column from dfmw4
+# the first column is called "id.y", which we do not need
+df <- cbind(df, dfmw4[,-1])
+head(df)
+```
+\normalsize
+
+Since we already extracted NDVI into the `mw4` shapefile, it is now also in the new `df` object. However, we can also extract raster values directly to the points, again using the `extract()` function and the same steps as above, creating a new column (or, in this case, replacing an existing column) called `ndvi`:
+
+\small
+```{r}
+#| echo: true
+#| eval: true
+dfextracted <- extract(ndvi, df)
+df$ndvi <- dfextracted$NDVI
+```
+\normalsize
+
+Note that these new values will be different from the values we extracted into the `mw4` shapefile. The reason is simple: the `mw4` shapefile consists of polygons and we took the *mean* NDVI value for each polygon. For the household points, however, we extract only the raster value for the raster grid in which the point falls. Another option is instead to take the value of the nearest four raster cells. We can do this using the `method = "bilinear"` option in `extract()`:
+
+\small
+```{r}
+#| echo: true
+#| eval: true
+dfextracted <- extract(ndvi, df, method = "bilinear")
+df$ndvibilinear <- dfextracted$NDVI
+summary(df[[c("ndvi", "ndvibilinear")]])
+```
+\normalsize
+
+Using the `summary()` function, we see that the values are slightly different from the two methods. In particular, the "bilinear" option has less extreme values, since we are taking the mean of many raster cells instead of the value from one.
+
+
+## Creating a grid
+
+As  mentioned previously, an alternative to using administrative geographies for our small area estimation is to instead create a grid that covers Northern Malawi. Recall from above that a raster is just a grid, where each grid cell has the same size (resolution). We want to create a shapefile that is essentially a raster, so we will first create a raster, and then turn it into a shapefile!
+
+We can create a raster using the `rast()` function from `terra`, but we have to be careful about the resolution. Specifically, we are going to use a shapefile to define the area in which we want to create the grid. We have to specify the resolution in the same units (CRS) as the shapefile. If the shapefile is projected into, for example, UTM, then we need to specify the resolution in meters. On the other hand, if it is in longitude/latitude, we need to specify the resolution in *degrees*. Since our `mw4` shapefile is in longitude/latitude, we will use degrees to specify the size of the grid.^[You may not get the size right on the first try, especially in degrees. The goal is to get a grid that is small enough to capture the variation in the data, but not so small that the model will be bad.]
+
+\small
+```{r}
+#| echo: true
+#| eval: false
+grid <- rast(mw4, res = 0.075)
+grid <- as.polygons(grid)
+grid$id <- 1:nrow(grid)
+ggplot() + 
+  geom_spatvector(data = grid) +
+  theme_bw(base_size = 8)
+```
+\normalsize
+```{r}
+#| echo: false
+#| eval: true
+grid <- rast(mw4, res = 0.075)
+grid <- as.polygons(grid)
+grid$id <- 1:nrow(grid)
+g1 <- ggplot() + 
+  geom_spatvector(data = grid) +
+  theme_bw(base_size = 10)
+ggsave(g1, filename = "assets/figgrid.pdf", height = 5, width = 3, units = "in")
+```
+![A grid for Northern Malawi](assets/figgrid.pdf){#fig-grid fig-align="center" width=40%}
+
+What have we done? We have created a raster that covers the *extent* of `mw4`, each cell of which has a resolution of 0.075 degrees. We then turned this raster into a shapefile using `as.polygons()`. The `id` column is simply a unique identifier for each grid cell, which we will use in a minute.
+
+@fig-grid shows the resulting grid we have created, but we have a problem: since it covers the entire extent of `mw4`, there are many grid cells that fall outside of Northern Malawi. We want to remove all of these grid cells from the shapefile. We can do this by finding all grid cells that overlap with the `mw4` polygons/features and then filter the `grid` shapefile to keep only the grid cells that overlap with the `mw4` shapefile. This is where the `id` column comes into play:
+
+\small
+```{r}
+#| fig-height: 6
+#| echo: true
+#| eval: false
+# create intersection
+intersection <- intersect(grid, mw4)
+# now filter the grid using the id column
+# (only keep ids that are IN the id column of intersection)
+grid <- grid |>
+  filter(id %in% intersection$id)
+ggplot() + 
+  geom_spatvector(data = grid) +
+  theme_bw(base_size = 8)
+```
+\normalsize
+```{r}
+#| echo: false
+#| eval: true
+# create intersection
+intersection <- intersect(grid, mw4)
+# now filter the grid using the id column
+# (only keep ids that are IN the id column of intersection)
+grid <- grid |>
+  filter(id %in% intersection$id)
+g1 <- ggplot() + 
+  geom_spatvector(data = grid) +
+  theme_bw(base_size = 10)
+ggsave(g1, filename = "assets/figgridnew.pdf", height = 5, width = 3, units = "in")
+```
+![Filtered grid for Northern Malawi](assets/figgridnew.pdf){#fig-gridnew fig-align="center" width=40%}
+
+The `intersect()` function creates a new shapefile that contains all intersections between the two shapefiles. It has the `id` column in it from `grid`, so we then filter the `grid` to keep only the grid cells whose `id` is in the `id` column of `intersection`. @fig-gridnew shows the resulting grid, which now properly represents Northern Malawi. We could of course then use this grid shapefile to extract raster data, as we did before. We could also find which grid cell in which the households fall, again using the same syntax as above, when we placed the households within admin areas to extract the admin 4 identifier.
+
+
+
+## Where can we get rasters? {#sec-getrasters}
+
+Rasters are relatively easy to find, but accessing them is not always straightforward. There are however, some websites that host simple raster files (e.g. .tif or .nc files) that can be easily downloaded. These include:
+
+- [WorldPop](https://www.worldpop.org/): WorldPop provides estimated population data in raster form for almost all countries across the globe. The data is available at different resolutions (e.g. 100m and 1km) and for different years.
+- [TerraClimate](https://www.climatologylab.org/terraclimate.html): TerraClimate provides monthly estimates of different climate variables, including precipitation and temperature. You can download the data directly from the website, by going to `Download > Individual Years`, selecting which year you want, and then clicking the link for `HTTPServer`.
+- [Colorado School of Mines - Nighttime Lights](https://eogdata.mines.edu/products/vnl/): Here you can find monthly and annual composites of nightlights, available for free download.
+- [Mosaiks](https://www.mosaiks.org/): Mosaiks provides access to features (rasters) which were produced using machine learning and satellite imagery [@rolf2021generalizable]. For details, it is important to refer to the website and the associated paper, but from experience, these features can often predict many outcomes quite well. The entire dataset is very large, so it is recommended that you download only the spatial areas you need.
+- [Open Buildings](https://sites.research.google/gr/open-buildings/): While not rasters, the Open Buildings project provides access to building footprints for many countries. These footprints are shapefiles. Building counts can be highly predictive of many outcomes, including poverty. A word of warning: these shapefiles can be *very* large, so working with them can be difficult in terms of computer memory.
+
+Here, we briefly discuss two of these in more detail.
+
+## Worldpop
+
+[WorldPop](https://www.worldpop.org/) provides (modeled/estimated) population data at a disaggreated level for almost all countries. The data is available at different resolutions (e.g. 100m and 1km) and for different years, with the most recent year available at the time of writing being 2020. Worldpop data is probably the easiest data to access of all the raster data discussed here. You can download data directly from [the website](https://hub.worldpop.org/project/categories?id=3) by selecting the methodology (unconstrained vs. constrained)^[According to the WorldPop website, the two methods are "1. Estimation over all land grid squares globally (unconstrained), and 2. estimation only within areas mapped as containing built settlements (constrained)."] and resolution (100m vs. 1km) and then searching for the country and year of interest. You can then directly download a `.tif` file that you can read into `R` using the methods described above.
+
+
+## Mosaiks
+
+[Mosaiks](https://www.mosaiks.org/) provides access to features (rasters) which have been produced using machine learning and satellite imagery [@rolf2021generalizable]. The entire dataset is very large, so it is strongly recommend that you download only the spatial areas you need. To access the raw features, you need to create an account on [the website](https://api.mosaiks.org/home/index/). After logging in, you can click `Map Query` at the top of the page and then use the coordinates for a bounding box to download just the data you need.
+
+Accessing the data can be a bit challenging due to restrictions on the number of records that you can download at one time. As such, for larger areas, you will have to download the data in smaller chunks. There is an alternative, however. This will result in slightly less accurate data, but it is much faster and can still provide acceptable predictive power. At the top of the website, there is a `File Query` option. If you select this and provide a `.csv` file with the coordinates for each admin area you are interested in, it will return the data associated with those coordinates. For example, you can create "centroids" for our admin 4 (EA) shapefile for Malawi, as follows:
+
+\small
+```{r}
+#| echo: true
+#| eval: true
+mw4 <- vect("data/mw4.shp")
+# create centroids
+mw4centroids <- centroids(mw4)
+# create Latitude and Longitude columns:
+mw4centroids$Latitude <- geom(mw4centroids)[,"y"] #"lat" column
+mw4centroids$Longitude <- geom(mw4centroids)[,"x"] #"lon" column
+# just keep what we want
+mw4centroids <- as_tibble(mw4centroids) |>
+  select(Latitude, Longitude, EA_CODE)
+# save
+write_csv(mw4centroids, "data/mw4centroids.csv")
+# here's how it looks
+head(mw4centroids)
+```
+\normalsize
+
+You can upload this `.csv` file to the `File Query` page on the Mosaiks website and, after some time, you will find the resulting data on the `My Files` page. 
+To note that you do not have to name the columns exactly as in the example above; the website allows you to select the correct columns for the x and y coordinates. However, to make things simpler, the above code uses the same names and column order as the website example.
+
+
+## Using Python to access Google Earth Engine {#sec-eeapi}
+
+While there are many ways to access raster data, probably the largest collection of datasets is [Google Earth Engine (GEE)](https://earthengine.google.com/) [@gorelick2017google]. GEE is a data repository that includes many different types of raster data, including satellite imagery, climate data, vegetation indices, land classification, and many others. 
+
+Unfortunately, downloading data from GEE is not as simple as downloading a file from one of the websites listed above. GEE has a code editor available on the website, but it can be difficult for users who are not familiar with JavaScript. There is also an API^[You can find an excellent introduction to APIs on the [IBM website](https://www.ibm.com/topics/api).], but it runs on Python. While there is an `R` package, it is just a wrapper for Python, meaning you still have to have Python downloaded and install on your computer. In addition, getting Python to run in `R` -- using the `reticulate` package -- brings its own challenges. For the purpose of this guide, it is therefore recommended that you use Python directly to access GEE.
+
+One option is to simply use Python on your own computer. However, we find that this presents its own challenges, as getting a new installation of Python up and running can be difficult for those without any experience using Python. Instead, we recommend that users use [Google Colab](https://colab.research.google.com/), which is a free service that allows you to run Python code in the cloud. Using Google Colab has the advantage of not having to install Python on your computer (and it also allows you to access the data from anywhere you have internet access, which of course can also be a downside).
+
+To start, we have uploaded a Python "notebook" to the GitHub repository that provides information on how to download data; the notebook is called `geospatialpull.ipynb`. To get started, you need to create an account on Google Earth Engine. From the [GEE homepage](https://earthengine.google.com/), click on `Get Started` in the upper-right corner. You will need a Google account to sign in, then you will have to follow the steps for registering a noncommercial project, creating a new "Google Cloud Project," and enabling the Earth Engine API. After following the steps to create a "Cloud Project," you will be able to access the Earth Engine API. *Make sure to take note of the project's name, which you will need later.*
+
+After creating your GEE account, you can copy the `geospatialpull.ipynb` notebook into Google Colab. You can do this by going to the [Google Colab website](https://colab.research.google.com/) and clicking on `File > New Notebook in Drive`. You can then copy-paste the code from the `geospatialpull.ipynb` notebook into the Google Colab notebook. You need a Google account, but you should already have one from the above instructions to create a GEE account; use the same account to log in to Google Colab, if asked.
+
+You will need to authenticate your Google account by running lines 14-20 in the example script (after copy-pasting the entire script into the Google Colab notebook), which will allow you to access the GEE API. You can do this by selecting all the relevant lines and pressing control + enter (or command + enter on a Mac). You will be asked to allow access to your GEE account, which you should allow.
+
+
+### Using the Python script
+
+The `geospatialpull.ipynb` notebook includes several different steps. First, you need to authenticate the API using the `ee.Authenticate()` function (discussed above). This will open a new tab in your browser, where you will be asked to sign in to your Google account and to allow the API to access your account. After clicking through the steps, you will see an API key, which you need to copy. You can then paste this key into the terminal and press enter, which will allow you to access the API.
+
+Second, you will need to initialize the API using the `ee.Initialize()` function. You should specify the name of the cloud project from above, as follows:
+
+\small
+```{python}
+#| echo: true
+#| eval: false
+ee.Authenticate()
+ee.Initialize(project="NAME")
+```
+\normalsize
+
+where `"NAME"` needs to be the name of your cloud project. In other words, you will need to change the script in Google Colab to include the name of your cloud project.
+
+One nice thing about Google Colab is that you can upload a shapefile to *your* Google Drive, which you now have access to after making a Google account. You can also upload it to your drive directly through Google Colab. On the far left side of the screen, there are five icons -- the first looks like three bullet points and the last one looks like a folder. Click the folder. Then, you will see four separate icons after clicking the folder; the third icon looks like a folder with an icon on it (if you hover over the icon, it will say "Mount Drive"). Click it. Google will then prompt you to mount your drive manually; simply follow the instructions and click through any approvals that pop up. Finally, after the drive is "mounted," click on "drive" and then on "MyDrive". If you hover over "MyDrive" you will see three dots on the right side. Click those, then select "upload" and upload *all* of the files associated with your shapefile. In other words, for Malawi you have to include *all* of the `mw3` files, not just `mw3.shp`. In this case, there are four separate files: `mw3.shp`, `mw3.shx`, `mw3.dbf`, and `mw3.prj`.
+
+In our example, we are using a shapefile from Malawi. If you have already uploaded the shapefile, can skip most of the steps above and simply "mount" the drive in Google Colab, using the code already in the notebook:
+
+\small
+```{python}
+#| echo: true
+#| eval: false
+from google.colab import drive
+drive.mount('/content/drive')
+```
+\normalsize
+
+We have put our shapefile (`mw3.shp`) in our Google Drive folder. After actually running the above code (click on the "play" button on upper-left-hand side of the code "chunk"), you will be able to see your Google Drive on the left-hand side of the screen, as in @fig-colab.
+
+![Mounting Google Drive in Colab](assets/colabdrive.png){#fig-colab fig-align="center"}
+
+If you click the three dots, you can then click on "Copy path" to get the path to the shapefile. You can then use this path in the Python script to load the shapefile into Python using the library "geopandas". Here is the code for the location of `mw3.shp` in my Google Drive (you might have to change the path based on the location of your shapefile, which you copied with "Copy path"):
+
+\small
+```{python}
+#| echo: true
+#| eval: false
+shape = geopandas.read_file("/content/drive/MyDrive/mw3.shp")
+# make sure it is in lat/lon (project it)
+shape = shape.to_crs("EPSG:4326")
+# let's get the total bounds for the shapefile
+bounds = shape.total_bounds
+```
+\normalsize
+
+In addition to loading the shapefile into Python, the code does two additional things. First, it reprojects the shapefile into longitude/latitude ("EPSG:4326", which we already saw above). We need this in order to create a proper "box" for our region. Then, it finds the "total bounds" of the shape, which is the box that completely contains the shapefile (see @fig-bboxexample in the appendix). We will use this box to define the region from which we want to download data.
+
+Now you need to decide what GEE dataset we want to download. As an example, let's look for NDVI. Navigate to the [GEE homepage](https://earthengine.google.com/) and click on "Datasets" at the top of the page (near the middle). On the next page, click "View all datasets." From the [next page](https://developers.google.com/earth-engine/datasets/catalog), we can search for datasets using key words. Search for "NDVI" (without quotes) and press enter. Here, you will see many search results, as in @fig-gee.
+
+![Google Earth Engine Search Results](assets/GEE.png){#fig-gee fig-align="center" width=100%}
+
+Download monthly NDVI at 1km, which in the above figure is the third option. Click on that dataset, which is called `MOD13A3.061 Vegetation Indices Monthly L3 Global 1 km SIN Grid`. On the next page, you will see a description of the data. Some of the important information on this page is:
+
+- `Dataset Availability`: This shows the dates for which data is available. In this case, the data starts in February of 2000 and goes to the present (or, at least, a month before the present). 
+- `Dataset Provider`: Where the data comes from.
+- `Earth Engine Snippet`: This is very important. This is the identifier you will use to access the data in Python. For this dataset, the identifier is `MODIS/061/MOD13A3`.
+- `Bands`: There is a list of different tabs, just below the `Tags` section. The `Bands` tab shows:
+  - The resolution of the raster. We chose the `1km` option, so its resolution is 1000 meters.
+  - The name of the bands. In this case, there are two bands of vegetation indices: NDVI and EVI. We will just focus on NDVI for now.
+  - The minimum and max values of the bands. NDVI should be between -1 and 1, which we can recover by multiplying the min/max values by the scale (in this case, 0.0001). However, given what we want to do with the data, it is okay for us to simply leave it in its original values.
+
+Now let's try to access this dataset in Python. You can use the `ee.ImageCollection` function to access the data. The code is as follows:
+
+\small
+```{python}
+#| echo: true
+#| eval: false
+# Let's look at NDVI
+ndvi = ee.ImageCollection("MODIS/061/MOD13A3")
+print(ndvi.getInfo())
+```
+\normalsize
+
+This tells the API to access the specified dataset, which is an "Image Collection." The `print(ndvi.getInfo())` command will print information in the console. In this case, it prints a *lot* of information, so it is not reproduced below. If it prints information, you will know that you successfully queried the dataset and can move on to the next step.
+
+This dataset covers more than 20 years. The household data we are using is for 2019, so for now we will just download 2019 data.^[In theory, we could also construct long-run means or standard deviations, which would require pulling data for other years, as well. However, for parsimony, we focus just on 2019 here.] In particular, let's start with just January 2019. You can do this by filtering the `ndvi` object, as follows:
+
+\small
+```{python}
+#| echo: true
+#| eval: false
+ndvi = ndvi.filterDate("2019-01-01", "2019-01-31")
+```
+\normalsize
+
+You now have a filtered dataset that contains data for January  2019. We are now going to do two more things. First, we are going to select only NDVI (i.e. get rid of EVI). Second, we are going to take the "mean" of the image -- which really takes the mean of each cell in the raster -- in order to make sure that we have only a single image, and not an image collection. The code for this is as follows:
+
+```{python}
+#| echo: false
+#| eval: true
+#| output: false
+import ee
+import geopandas
+ee.Authenticate()
+ee.Initialize(project="ee-geefolder")
+ndvi = ee.ImageCollection("MODIS/061/MOD13A3")
+```
+
+\small
+```{python}
+#| echo: true
+#| eval: true
+# for assets that have many bands (raster layers), we can select the specific ones we want:
+ndvi = ndvi.select("NDVI")
+ndvi
+# finally, just make sure we have an IMAGE, not an image collection
+ndvi = ndvi.mean()
+ndvi
+```
+\normalsize
+
+We can see the change in the output after `ndvi.mean()`. Before the function call, the `ndvi` object had the class `ee.imagecollection.ImageCollection`. However, after the mean call, the object is now of class `ee.image.Image`. This is what we want, since we can now download the data.
+
+We also want to select data for just a portion of the globe, and not the entire globe, in order to make the code faster and decrease the size of the resulting raster. We already created the bounding box for Northern Malawi, but one change is needed so that GEE will interpret the box correctly. We are going to create an `ee.Geometry.Bbox` object. To do so, we need to give it four values:
+
+1. The minimum longitude
+2. The minimum latitude
+3. The maximum longitude
+4. The maximum latitude
+
+It will not accept the `array` object we created prior, so we are going to create the geometry object as follows:^[Python uses something called "zero indexing." This means that the first element in a Python object is listed as 0, and not 1. This is different from `R`.]
+
+\small
+```{python}
+#| echo: true
+#| eval: false
+"""
+let's create a bounding box in earth engine.
+Note the syntax (xmin, ymin, xmax, ymax)
+this does not accept an array (which is what bounds was), 
+so we will extract the individual components
+Also note that indexing in python starts at 0, not 1! bounds[0] 
+gives the first value in the array
+"""
+bbox = ee.Geometry.BBox(bounds[0], bounds[1], bounds[2], bounds[3])
+```
+\normalsize
+
+We can now send the `bbox` with our code to GEE, which will return only data that is within the bounding box.
+
+Here is the code to start the download, which is described further below:
+
+\small
+```{python}
+#| echo: true
+#| eval: false
+task = ee.batch.Export.image.toDrive(image=ndvi,                                  # <1>
+  description='ndvi1',                                                            # <2>
+  scale=1000,                                                                     # <3>
+  region=bbox,                                                                    # <4>
+  crs='EPSG:4326',                                                                # <5>
+  fileFormat='GeoTIFF')                                                           # <6>
+task.start()                                                                      # <7>
+task.status()                                                                     # <8>
+```
+1. `image=ndvi`: This is the image we want to download. In this case, it is the mean NDVI for January 2019 (which we specified prior to this call).
+2. `description='ndvi1'`: This is the name of the file that will be downloaded. You can change this to whatever you want.
+3. `scale=1000`: This is the resolution of the raster. This GEE dataset has 1000m resolution, so it makes sense to choose the same here. It never makes sense to choose a resolution *higher* (i.e. smaller) than the original resolution, but you can choose a resolution that is lower (i.e. larger), for example to export a smaller object.
+4. `region=bbox`: This is the region of the world we want to download. We created our box using Northern Malawi.
+5. `crs='EPSG:4326'`: Specifying the CRS we want to download. In this example, longitude/latitute is used.
+6. `fileFormat='GeoTIFF'`: The format of the file we want to download. As it is a raster, we will download a `GeoTIFF` (`.tif` file.)
+7. `task.start()`: This starts the download. You must run this line in order to actually download the data.
+8. (Optional) `task.status()`: This will give you the status of the download. Depending on the size of the data, the entire process can sometimes take a while. In this example, it should be relatively quick.
+\normalsize 
+
+When the task has finished, the resulting raster -- in this case, `ndvi1.tif` -- will be saved in the Google Drive associated with the account you used to sign into GEE. The free version of Drive has only 1GB of storage, so be careful with memory management. It is recommended you move the `.tif` files out of Drive and onto your computer as soon as it has finished downloading.
+
+In the `geospatialpull.ipynb` notebook, there is also an example of how to download a raster for every month of 2019 using a 'for loop'. Please see lines 70 to 101 in that script.
+
+You can follow the same steps for any other indicator. Here, we provide one more example for land cover, which is highly correlated with urbanity and, as such, poverty. The proper identifier for the dataset we are going to use is `COPERNICUS/Landcover/100m/Proba-V-C3/Global`, which provides *annual* estimates of land cover at a resolution of 100m. You can find information for this dataset on GEE, [here](https://developers.google.com/earth-engine/datasets/catalog/COPERNICUS_Landcover_100m_Proba-V-C3_Global).
+
+As before, we load the dataset, filter it for 2019 (in this case, we are going to filter for the entirey of 2019, and not just January), select the bands we want, and then download it. The code is as follows:
+
+\small
+```{python}
+#| echo: true
+#| eval: true
+# get the collection
+lc = ee.ImageCollection("COPERNICUS/Landcover/100m/Proba-V-C3/Global")
+# We can also filter the collection by date. All of 2019.
+lc = lc.filterDate("2019-01-01", "2019-12-31").first()
+```
+\normalsize
+
+Note the use of `.first()` on line four. This insures that the function returns an image, not an image collection. We can then select the bands we want and download the data, as we did with NDVI. On the GEE page for this dataset, you can see that it has many different bands. We are going to download all of the bands with the word "coverfraction" in them. To get the names of the bands, we can use `.bandNames().getInfo()`:
+
+\small
+```{python}
+#| echo: true
+#| eval: true
+#| code-block-border-left: false
+bandnames = lc.bandNames().getInfo()
+bandnames
+```
+\normalsize
+
+Now, we want to select *only* the band names that contain the string "coverfraction." There are several ways to do this. One way is to simply note that the bands we want are bands three through 12 (indexed as two through 11 due to differences in Python). We can then use the `ee.Image.select()` function to select only these bands, remembering that Python calls elements in a list differently than `R`:
+
+\small
+```{python}
+#| echo: true
+#| eval: true
+#| code-block-border-left: false
+lc = lc.select(bandnames[2:12])
+# double check
+lc.bandNames().getInfo()
+```
+\normalsize
+
+The `geospatialpull.ipynb` notebook shows another example, to help make you more familiar and comfortable with loops in Python. You can find the loop on lines 144 to 156 in the Python script.
+
+After selecting the relevant bands, you can download the data using the same syntax as before (along with the same bounding box):
+
+\small
+```{python}
+#| echo: true
+#| eval: false
+task = ee.batch.Export.image.toDrive(image=lc,
+    description='lc',
+    scale=100, # 100 now, since that's the resolution of the data
+    region=bbox,
+    crs='EPSG:4326',
+    fileFormat='GeoTIFF')
+task.start()
+task.status()
+```
+\normalsize
+
+Note that this will take longer to download than the NDVI data as you are downloading multiple bands, at a higher resolution. After downloading the data, it will again appear in your Google Drive. Move out it and into the folder on your computer in which you have been working.
+
+
+## Geolink {#sec-geolinkapi}
+
+As of the time of this writing, there is a package being developed to enable the pulling of geospatial data directly in `R`, without the use of Google Earth Engine or Python. You can find documentation and examples on [GitHub](https://github.com/SSA-Statistical-Team-Projects/GeoLink). This package is still in development, so we encourage readers to check on GitHub for updates.
+
+## Finishing up
+
+At this point, you should download all of the geospatial data you need for your SAE model. An important piece of this is estimated population (from WorldPop), which we will use later as weights. Some common datasets used for SAE include:
+
+- Population
+- NDVI (by month)
+- Nighttime lights
+- Land cover classification
+- Mosaiks
+
+You can of course add anything else you think might be helpful. We will use only the above data in the rest of this guide.^[In the uploaded data on GitHub, we only include a subset of Mosaiks features due to its size. If you have the RAM, you can download and include all of them.] 
+The final variables, at the EA (admin 4) level, are saved in the `finalgeovars` folder on the GitHub repo. If you would like to see how these variables in `R`, please see the `geoaggregation.R` script in the GitHub repository. The final dataset that we will use for this guide is `data/geovarseas.csv`.
+
+
+
+
+
+\FloatBarrier
+\newpage
+# Survey data {#sec-surveydata}
+
+We have already had a glimpse of the household survey data, when looking at the GPS coordinates of the households. However, we need to take a few more steps before continuing: We need to combine the GPS data with poverty data, and then aggregate it to the admin 4 level for estimating the SAE model.
+
+## Getting the survey data ready {#sec-surveys}
+
+The first step is to load both the household GPS data and the poverty data,^[The raw survey data also includes information on expenditures, which the Malawian NSO uses to calculate poverty indicators for each household.] remove households with missing coordinates or that have coordinates of (0, 0), and then join the two household datasets together.
+
+\small
+```{r}
+#| echo: true
+#| eval: true
+# load both datasets
+df <- read_dta("data/ihshousehold/householdgeovariables_ihs5.dta")
+pov <- read_dta("data/ihshousehold/ihs5_consumption_aggregate.dta")
+# remove missing or 0 coordinates from df
+df <- df |>
+  filter(!is.na(ea_lon_mod), ea_lon_mod!=0)
+# just keep the things we want
+df <- df |>
+  select(case_id, ea_lon_mod, ea_lat_mod)
+pov <- pov |>
+  select(case_id, hhsize, hh_wgt, poor)
+# now join pov to df
+df <- df |>
+  left_join(pov, by = "case_id")
+head(df)
+```
+\normalsize
+
+We have used `left_join()` from `tidyverse` to join the two datasets together. We now need to turn our new object into a spatial object, which we can do using the `terra` package (as we did in @sec-coordinates). We will then extract the information from the `mw4` shapefile.
+
+\small
+```{r}
+#| echo: true
+#| eval: true
+# turn into spatial object
+df <- vect(df, geom = c("ea_lon_mod", "ea_lat_mod"), crs = "EPSG:4326")
+# load mw4
+mw4 <- vect("data/mw4.shp")
+# make sure they are in the same CRS
+mw4 <- project(mw4, crs(df))
+# extract information
+extracted <- extract(mw4, df)
+# add to df, except for first column
+df <- cbind(df, extracted[,-1])
+head(df)
+```
+\normalsize
+
+We now have our household data, which includes the household size, household weights, poverty indicator, TA code (admin 3 code), and EA code (admin 4 code). Now let's aggregate to the admin 4 level:
+
+\small
+```{r}
+#| echo: true
+#| eval: true
+df <- as_tibble(df) |> # this takes df out of a "spatial" object
+  group_by(EA_CODE, TA_CODE) |> # this is the admin 4 and admin 3 identifier
+  # summarize will aggregate up to the EA/TA (so the EA)
+  summarize(poor = weighted.mean(poor, hhsize*hh_wgt),
+    total_weights = sum(hhsize*hh_wgt)) |>
+  ungroup()
+head(df)
+```
+\normalsize
+
+Our new `df` object is now at the admin 4 level and has mean poverty rates, total household weights, and identifiers for both the admin 3 and admin 4 levels. This will serve as the "sample" for our small area model.
+
+
+What do we need? We need a dataset with:
+
+- Admin identifier
+- Outcome of interest (e.g. expenditures)
+
+We can then merge this with geospatial data, at the admin 4 level in this case, to estimate an SAE model.
+
+
+
+
+
+\FloatBarrier
+\newpage
+# Creating and selecting features {#sec-features}
+
+Once we have all of the geospatial features, we now need to think about choosing which features we want to use in our model and whether we want to use our raw features to create new indicators. Choosing features is particularly important with geospatial data due to the sheer number of features we can create. We have already created a number of features, but we can also create new features, transform existing features, and use lasso to select features. We will discuss each of these in turn. In this section, we will be using the final, cleaned version of features in the `data/geovarseas.csv` file.
+
+
+
+## Creating new features e.g. admin means {#sec-newfeatures}
+
+We will be estimating models at the admin-4 level. However, this does not mean that all of our predictors must necessarily be at the admin-4 level. For example, we can create means or standard deviations at higher levels (e.g. admin 3). We can also create lagged means or standard deviations at the admin 4 level, as well as interactions between different features. 
+
+As a simple example, consider creating total population at the admin-3 level, in addition to the admin-4 level. Let's first load the features into `R` and do a bit more cleaning:
+
+\small
+```{r}
+#| echo: true
+#| eval: true
+# load features
+features <- read_csv("data/geovarseas.csv")
+# the population column is mwpop
+head(features)
+```
+\normalsize
+
+Let's now create one more variable, which is total population at the admin-3 level:
+
+\small
+```{r}
+#| echo: true
+#| eval: true
+# create TOTAL pop at admin3 level:
+features <- features |>
+  group_by(TA_CODE) |>
+  mutate(popTA = sum(mwpop, na.rm = TRUE)) |>
+  ungroup()
+```
+\normalsize
+
+Here, we take advantage of the `tidyverse`'s `group_by()` and `mutate()` functions to aggregate total population up to the admin-3 level, but keeping the dataset itself at the admin-4 level.
+
+As another example, let's consider NDVI, which is a measure of vegetation ("greenness"). In countries like Malawi, NDVI can be highly predictive of poverty due to its correlation with the agricultural harvest. However, at the same time, the exact timing of NDVI measures can be very important for capturing this relationship, due to the seasonality inherent in rain-fed agricultural production. In practice, we often pull historical NDVI and then include things like long-term mean, long-term max, long-term min, and even long-term standard deviation, in addition to current values. 
+
+In our simple example, we downloaded 12 separate NDVI files^[This is the for loop at the end of the `geospatialpull.ipynb` notebook.] and we can use these to calculate things like min/mean/sd of NDVI throughout the year. In the `features` object, the NDVI columns are named `ndviM`, where `M` is an integer from 1 to 12, indicating the month of the year.
+
+Let's create some new values, such as the *annual* mean, max, min, and standard deviation:
+
+\small
+```{r}
+#| echo: true
+#| eval: true
+# Let's first find the columns we want!
+ndvicols <- grep("ndvi", names(features))      # <1>
+features$ndvimean <- apply(features[,ndvicols], 1, mean, na.rm = TRUE)      # <2>
+features$ndvistd <- apply(features[,ndvicols], 1, sd, na.rm = TRUE)      
+features$ndvimax <- apply(features[,ndvicols], 1, max, na.rm = TRUE)      
+features$ndvimin <- apply(features[,ndvicols], 1, min, na.rm = TRUE)   
+head(features[,c("ndvimean", "ndvistd", "ndvimax", "ndvimin")])       # <3>
+```
+\normalsize
+
+Here, we take advantage of a new function we have not used before: `apply()`. The `apply()` function is very useful. In this case, we are going to "apply" a single function to different columns of `ndviextracted`. Let's go through each row in the above code:
+
+1. This row does something slightly more advanced. We want to find the location of the columns that contain the string "ndvi" in the column names. We can do this using `grep()`, which returns the *index* of the columns that contain the string "ndvi". We can then use this index to find the columns we want.
+2. `ndvimean`: We are going to take the mean of the NDVI values for each *row*, which is what the `1` represents in the function call (if we wanted to apply it *down* columns, we would use a `2` instead). We use `apply()` to apply the `mean()` function to each row, excluding missing values. The next three rows do something similar, just calling a different function instead of the `mean`.
+3. Here we are looking at the first few rows of `df`, but *only* for the new columns we just created.
+
+
+
+## Thinking about transformations {#sec-transformations}
+
+In addition to creating new variables through aggregation to a higher level of geography or combining data over time, we can also transform both our (potential) predictor variables and our outcome variable, through, for example, log transformations. Why might we want to transform our variables? There are two primary reasons:
+
+1. Improve the predictive ability of the model. For example, a log transformation can sometimes make the relationship between a predictor and the outcome more linear, which is particularly important for linear models (which are the workhorse of SAE).
+2. Improve the properties of the residuals. In SAE, we often use a parametric bootstrap for point estimation and inference. In our case, we make two key assumptions: the residual is normally distributed and the random effects are normally distributed. Transforming the outcome variable, in particular, can sometimes make the residuals more normal, which can improve the properties of the bootstrap.
+
+Let's start with the outcome: poverty rates at the admin-4 level. Before diving into this, it is important to clarify that the assumptions we make in our SAE model are not about the distribution of the outcome itself, but rather about the *residuals* and random effects. Nonetheless, outcomes that are more "normally" distributed do tend to have better properties in terms of estimation.
+
+```{r}
+#| label: fig-poptrans
+#| fig-cap: Poverty rates in Northern Malawi
+#| echo: false
+#| eval: true
+#| fig-align: center
+
+pov <- read_csv("data/ihs5ea.csv")
+# not we join pov INTO features. This means we have all admin 4 areas, with or without sample data
+pov <- features |>
+  left_join(pov, by = "EA_CODE")
+g1 <- ggplot(data = pov) + 
+  geom_density(aes(x = poor)) +
+  labs(x = "Poverty (levels)", y = "Density", subtitle = "A. Untransformed") +
+  theme_bw(base_size = 8)
+g2 <- ggplot(data = pov) + 
+  geom_density(aes(x = asin(sqrt(poor)))) +
+  labs(x = "Poverty (transformed)", y = "Density", subtitle = "B. Arcsin (square root) transformed") +
+  theme_bw(base_size = 8)
+plot_grid(g1, g2, nrow = 1)
+
+```
+
+In the above figure, we show the density of poverty rates in Northern Malawi. The left panel shows the untransformed poverty rates, while the right panel shows the poverty rates after an arcsin (square root) transformation.^[The arcsin square root transformation is defined as $y^*=\sin^{-1}(\sqrt{y})$.] We have found that this transformation performs particularly well when the outcome is a proportion, as it is in this case (it varies between 0 and 1). It is quite clear from the figure that the transformed outcome is more "normal" than the untransformed outcome. However, since we are really interested in the residuals, we discuss model diagnostics more below, where we also look at statistics for skewness and kurtosis of the residuals and random effects.
+
+
+But since we are really interested in the residual, we can look at how a transformation might affect the predictive power of the model. To do this, we will use the `feols()` function from the package `fixest`.^[You can also use the `lm()` function from base `R`. However, we prefer the `feols()` function because it makes some things much easier, like adding weights.]
+
+Before we do this, however, we need to recode some of the key predictors: land cover classifications. Right now, the land cover classification values are not true proportions! They are counts of pixels of different land classifications within each EA. We need to turn these into proportions. We can do this by dividing by the total number of pixels in each EA. Let's do this:
+
+\small
+```{r}
+#| echo: true
+#| eval: true
+
+# find columns we want
+landcols <- grep("coverfraction", names(features))
+# how many total pixels?
+features$totalpixels <- apply(features[,landcols], 1, sum, na.rm = TRUE)
+# go through each one and replace with proportion:
+for (i in landcols){
+  features[,i] <- features[,i]/features$totalpixels
+}
+# remove total pixels
+features <- features |>
+  select(-totalpixels)
+summary(features[,landcols])
+
+```
+\normalsize
+
+
+The above output also provides some additional context for selecting the variables for our SAE models. In our SAE application below, we will be estimating a model using maximum likelihood estimation. In such cases, we can sometimes experience convergence issues, especially when some predictors have very little variation, In this example, several of the land cover classification variables have no variation -- so they will not be selected at all in the lasso application we discuss below -- but others show very little variation. Let's remove all columns that have very little variation:
+
+
+\small
+```{r}
+#| echo: true
+#| eval: true
+
+features <- features |>
+  select(-c("mosscoverfraction", "waterpermanentcoverfraction", 
+    "waterseasonalcoverfraction", "snowcoverfraction"))
+
+```
+\normalsize
+
+Let's consider the three regressions, with poverty on the left-hand side and two separate predictors, `cropscoverfraction` and `mwpop`, on the right-hand side. We estimate three separate (simple) regressions with different transformations. In column one, all variables -- including the outcome -- are not transformed. In column two, we transform the outcome only, leaving both of the predictors untransformed. In column three, we transform both the outcome and the predictors, using the arcsin transformation for crop cover and the log transformation for population. The results are in @tbl-povtrans.
+
+```{r}
+#| label: regs-povtrans
+#| echo: true
+#| eval: true
+#| fig-align: center
+# new data
+pov <- read_csv("data/ihs5ea.csv")
+# not we join pov INTO features. This means we have all admin 4 areas, with or without sample data
+pov <- features |>
+  left_join(pov, by = "EA_CODE") |>
+  mutate(mwpop = mwpop/1000)
+
+reg1 <- feols(poor ~ cropscoverfraction + mwpop, data = pov, weights = ~total_weights, vcov = "HC1")
+reg2 <- feols(asin(sqrt(poor)) ~ cropscoverfraction + mwpop, data = pov, weights = ~total_weights, vcov = "HC1")
+reg3 <- feols(asin(sqrt(poor)) ~ asin(sqrt(cropscoverfraction)) + log(mwpop), data = pov, weights = ~total_weights, vcov = "HC1")
+```
+
+```{r}
+#| label: tbl-povtrans
+#| tbl-cap: "Variable transformations"
+#| echo: false
+#| eval: true
+#| fig-align: center
+table <- etable(reg1, reg2, reg3,
+  signif.code = NA, se.below = TRUE, depvar = FALSE,
+  digits = 4, digits.stats = 3)
+table <- rbind(table[3:10,], table[1:2,], table[13:14,])
+table[c(1, 3, 5, 7),1] <- c("Crops cover (levels)", "Population (levels, '000s)", "Crops cover (arcsin)", "Population (log)")
+table[nrow(table), 1] <- "R$^2$"
+colnames(table) <- c("", "Poor", "Poor", "Poor")
+
+table <- kable(table, format = "latex", digits = 3,
+    booktabs = TRUE, row.names = FALSE, escape = FALSE, align = "lcccc") |>
+  add_header_above(header = c(" " = 2, "Transformed" = 2)) |>
+  column_spec(column = 1, width = "5cm") |>
+  column_spec(column = 2, width = "3cm") |>
+  row_spec(row = nrow(table)-2, hline_after = TRUE) |>
+  footnote("\\\\footnotesize{Note: The table shows the results from regressions of poverty on the listed variables. In column one, the outcome variable (poverty) is not transformed. In columns two and three, the outcome variable is transformed using the arcsin (square root) transformation. For the predictors, the transformations are arcsin and log for crop cover and population, respectively. Heteroskedasticity-robust standard errors are in parentheses.}",
+    general_title = "",
+    threeparttable = TRUE,
+    footnote_as_chunk = TRUE,
+    escape = FALSE
+    ) |>
+  kable_classic_2()
+# replace \item with nothing
+table <- gsub("\\\\item", "", table)
+table <- gsub("\\\\addlinespace", "", table)
+table
+```
+
+Transforming just the outcome improves the fit, at least as measured by r-squared, by around `r round((0.104/0.097 - 1)*100, 1)` percent. All of the transformations, however, increase the predictive power of the regression by `r round((0.124/0.097 - 1)*100, 1)` percent. In other words, the transformations of just these two variables, along with the outcome, can lead to a substantial improvement in the model.^[We note that we only show these results for illustrative purposes. In practice, we do not use r-squared as a measure of model fit, especially when only looking within the sample.]
+
+
+
+
+## lasso and `glmnet` {#sec-lasso}
+
+In the above sections, we have shown how transforming our predictor and outcome variables can improve the fit of a model. However, we have not yet discussed how to choose which features to actually include in the model. Including all potential predictors has two primary problems:
+
+1. First, we often have more predictors than observations. In this case, it is impossible to estimate the model.
+2. Even if we have more observations than predictors, including all predictors can lead to overfitting. In essence, our model can end up predicting noise in the data, rather than true underlying relationships. This will lead to very poor performance, especially when predicting into out-of-sample data.
+
+There are many ways to select predictors, but the most commonly used method is "lasso".^[Lasso stands for "least absolute shrinkage and selection operator," but it is often simply refered to by its acronym.] Lasso is a regression method that "penalizes" coefficients. To put it simply, it will shrink coefficients to zero if they do not meaningfully improve the performance of the model. In practice, this approximately equalizes in-sample and out-of-sample r-squared.
+
+In its simplest form, lasso is a linear regression model with an additional penalty term. We minimize the following objective function with respect to $\beta$:
+
+$$ (y-X\beta)^2 + \lambda \sum_{j=1}^p |\beta_j|, $$
+
+where $\lambda$ is a tuning parameter that determines the size of the "penalty" and $(y-X\beta)^2$ is the usual ordinary least squares minimiazation problem. Importantly, the penalty term can in principle take on any (non-negative) value. When $\lambda=0$, lasso is just a linear regression. As $\lambda$ increases, fewer and fewer variables will be selected (i.e. will have non-zero coefficients). So what is the "correct" value for $\lambda$? In practice, we often select $\lambda$ using cross validation.
+
+
+![Cross validation set up](assets/CVdiagram.png){#fig-cv fig-align="center"}
+
+Cross validation is a process that is designed to mimic out-of-sample estimation. Consider the setup in @fig-cv. We first take the sample data and randomize it into N $folds$; the most common number of folds is 10, but the diagram shows five for simplicity. Since we are trying to mimic out-of-sample performance, we estimate a model on $N-1$ folds and then predict on the remaining fold. We then calculate the mean squared error (MSE) of the prediction. We repeat this process N times, each time leaving out a different fold. We can then find the mean MSE across all of the folds. We can repeat this process many times, for different values of $\lambda$. The final ("optimal") value of $\lambda$ is the one that minimizes the mean MSE across folds. 
+
+Thankfully, we do not need to do all of this by hand. Instead, we can use the `cv.glmnet()` function from the `glmnet` package. This function will automatically assign observations to folds and calculate MSE for different values of $\lambda$. To do this, `glmnet` needs to be installed, which can be done using the `install.packages("glmnet")` function, and then loading the library with `library(glmnet)`.
+
+The following code illustrates this process using already cleaned data. The cleaned features are in the `geovars.csv` data and the outcome is in the `ihs5ea.csv` data. Both datasets are again from Northern Malawi and are already collapsed to the admin4 (EA) level. First, load both datasets:
+
+\small
+```{r}
+#| echo: true
+#| eval: true
+# load poverty
+pov <- read_csv("data/ihs5ea.csv")
+# load features
+features <- read_csv("data/geovarseas.csv")
+# add features to pov
+pov <- pov |>
+  left_join(features, by = "EA_CODE")
+head(pov)
+```
+\normalsize
+
+We need to ensure we know which column includes the outcome of interest (in this case, `poor`) and which columns include all of the predictors. The data `geovarseas.csv` data has been cleaned such that there are only two non-predictors: the admin4 identifier (`EA_CODE`) and the admin3 identifier (`TA_CODE`). This means that all columns from `mwpop` to `ncol(pov)` are the predictors. We should be very specific about what `Y` and `X` are in this case, before using `cv.glmnet`.^[A small note: the outcome needs to be a vector and the predictors need to be in the form of a matrix. Both of these requirements are specified in the code.] In addition, recall that we discussed using a transformation of the outcome variable, specifically. Let's also do that here:
+
+\small
+```{r}
+#| echo: true
+#| eval: true
+Y <- as.vector(asin(sqrt(pov$poor)))
+# column 6 is the location of mwpop
+X <- as.matrix(pov[,7:ncol(pov)])
+# here is the cross validation to select lambda
+set.seed(234056) # set seed for consistent results!
+# five folds to keep with the simple example
+cvresults <- cv.glmnet(x = X, y = Y, nfolds = 5)
+cvresults
+```
+\normalsize
+
+The `cvresults` object contains information about two different options for $\lambda$: the value of $\lambda$ that minimizes MSE (`lambda.min`) and the value of $\lambda$ that is a bit larger (`lambda.1se`), meaning it is more conservative and will usually lead to fewer non-zero coefficients. In this example, the number of non-zero coefficients is either `r cvresults$nzero[cvresults$lambda==cvresults$lambda.min]` or `r cvresults$nzero[cvresults$lambda==cvresults$lambda.1se]`, depending on which $\lambda$ we choose.^[Note that we need to set a seed if we want consistent results when re-running the cross validation. This is because cross validation relies on some degree of randomness (in the allocation across folds).] We can use the `plot()` function to see the results, with the results in @fig-cvresults (the dotted lines represent the two "optimal" values of $\lambda$).
+
+\small
+```{r}
+#| echo: true
+#| eval: false
+plot(cvresults)
+```
+\normalsize
+
+```{r}
+#| echo: false
+#| eval: true
+#| label: fig-cvresults
+#| fig-cap: CV results
+#| fig-align: center
+p <- as_tibble(cbind(lambda = cvresults$lambda, nzero = cvresults$nzero, mse = cvresults$cvm, cvlo = cvresults$cvlo, cvup = cvresults$cvup))
+plabs <- cvresults$nzero[length(cvresults$nzero):1]
+ggplot(p) +
+  geom_errorbar(aes(x = log(lambda), ymin = cvlo, ymax = cvup), color = "gray") +
+  geom_point(aes(x = log(lambda), y = mse), color = "red") +
+  geom_vline(aes(xintercept = log(cvresults$lambda.min)), color = "black", linetype = "dotted") +
+  geom_vline(aes(xintercept = log(cvresults$lambda.1se)), color = "black", linetype = "dotted") +
+  labs(x = expression("log("*lambda*")"), y = "Mean-Squared Error", color = "Legend") +
+  scale_x_continuous(sec.axis = sec_axis(~ ., labels = p$nzero[seq(from = 1, to = length(p$nzero), by = 3)], breaks = log(p$lambda[seq(from = 1, to = length(p$nzero), by = 3)]))) +
+  theme_bw(base_size = 8)
+```
+
+The next step is the most important: extracting the variables that have non-zero coefficients. While seeing the coefficients is straightforward, extracting the names of the variables is unfortunately more difficult than it probably should be. 
+
+To simply view the coefficients, we can use the `coef()` function, as shown below. Note that the code uses `head()` to keep the size of the R output to a managable size for this guide:^[The two non-negative variables visible in the output are nightlights (`average_masked`) and the proportion of the area that is bare ( `barecoverfraction`). Both coefficients are in the expected direction.]
+
+\small
+```{r}
+#| echo: true
+#| eval: true
+head(coef(cvresults))
+```
+\normalsize
+
+The coefficients showing a `.` have zero value. We can use this fact to extract the names of the variables with non-zero coefficients. We can see this if we turn the `coef()` result into a matrix:^[Again, `head()` is used to limit the output to the first few variables for practical purposes.]
+
+\small
+```{r}
+#| echo: true
+#| eval: true
+head(as.matrix(coef(cvresults)))
+```
+\normalsize
+
+After turning the results into a matrix, we can see that the `.` coefficients become zeros. With this in mind, we can finally extract the names of the non-zero coefficients, as follows:
+
+\small
+```{r}
+#| echo: true
+#| eval: true
+# we can specify the lambda we want to use; "lambda.min" or "lambda.1se"
+nonzero <- as.matrix(coef(cvresults, "lambda.min"))
+nonzero <- rownames(nonzero)[nonzero[,1]!=0]
+nonzero
+# now remove the intercept (since this is automatically added)
+nonzero <- nonzero[-1]
+nonzero
+```
+\normalsize
+
+In this example, we have three non-zero coefficients, but we want to remove the intercept, which is always the first coefficient. We remove the intercept because it will automatically be added by the SAE function that we use later. This is done with the `nonzero <- nonzero[-1]` line of code above.
+
+The final step is to turn this into a *formula*, of the form $outcome ~ x_1 + \cdots + x_n$, where $x_1, \ldots, x_n$ are the non-zero coefficients. We can do this with the `paste()` function and the `collapse` option, as follows:
+
+\small
+```{r}
+#| echo: true
+#| eval: true
+ebpformula <- as.formula(paste("poor ~ ", paste(nonzero, collapse = " + ")))
+ebpformula
+```
+\normalsize
+
+The `collapse = " + "` option tells `paste()` to separate the variables with a `+` sign. Finally, we have to explicitly tell `R` that this is a formula, which we do using `as.formula()`. This is the formula we will use below in section @sec-estimating.
+
+ 
+ 
+ \FloatBarrier
+\newpage
+
+# Estimating the model {#sec-estimating}
+
+In this section, we will estimate the model we have been building up to. We will use an updated version of the `povmap` package, which is not yet on CRAN, so we will download the GitHub version.
+
+## povmap {#sec-povmap}
+
+The `povmap` package contains many functions that enable small area estimation using a variety of methods. The package is under active development, but its CRAN version is stable. You can find a pdf of the package's documentation [here](https://cran.r-project.org/web/packages/povmap/povmap.pdf) and you can find more updated versions -- that are not yet on CRAN -- on the World Bank's Sub-Saharan Africa Statistical Team's GitHub page [here](https://github.com/SSA-Statistical-Team-Projects/povmap). As noted, we are not going to use the CRAN version. Instead, we are going to use a more updated version that includes different options for the `ebp()` function. Here is the code to install the package off GitHub:
+
+\small
+```{r}
+#| echo: true
+#| eval: false
+devtools::install_github("SSA-Statistical-Team-Projects/povmap", ref = "david3")
+```
+\normalsize
+
+If you receive an error trying to install `povmap` -- for example, if the authors of that package update the CRAN version and remove the `david3` branch -- we have also uploaded a `.zip` file of the package on our [GitHub page](https://github.com/JoshMerfeld/geospatialSAEhowto). You can download the compressed `.zip` file and then install it using `devtools::install_local(PATH)`, where `PATH` is the path to the `.zip` file.
+
+For this example, we will be using the function `ebp()`, which stands for empirical best prediction [@molina2010small]. We will be estimating a sub-area model, in which the admin4 geography is the sub-area, and predicting at the admin3 (TA -- or Traditional Authority -- in Malawi) level. 
+
+In the previous section, we already set up our data for the estimation. Our outcome variable is contained in the `pov` object and our predictors are in the 'features' object. 
+
+The simplest specification of our model is as follows:
+\small
+```{r}
+#| echo: true
+#| eval: false
+results <- ebp(
+  fixed = ebpformula, # <1>
+  pop_data = features, # <2>
+  pop_domains = "TA_CODE", # <3>
+  smp_data = pov, # <4>
+  smp_domains = "TA_CODE", # <5>
+  MSE = TRUE, # <6>
+  transformation = "arcsin", # <7>
+  na.rm = TRUE # <8>
+  )
+```
+1. `fixed = ebpformula`: This is the formula we created above, which includes the non-zero coefficients selected using lasso.
+2. `pop_data = features`: This is the dataset that includes the predictors for the *population*. In this case, it is the `features` object.
+3. `pop_domains = "TA_CODE"`: This is the identifier for the area in the population data. In our example, it is the admin3 identifier, the `TA_CODE`.
+4. `smp_data = pov`: This is the dataset that includes the outcome of interest. This is created from a survey, so it does not cover all of the admin3 areas. In our example, it is the `pov` object.
+5. `smp_domains = "TA_CODE"`: This is the identifier for the area in the sample data. It has the same name as the `pop_domains` in this case.
+6. `MSE = TRUE`: This tells the function to calculate variance estimates.^[It is important to note that are estimate mean squared error (MSE) and not the variance. However, we usually assume they are the same, assuming there is no bias.]
+7. `transformation = "arcsin"`: This is the transformation we used above. Note that the default for `ebp()` is a box-cox transformation. If you do not want to use a transformation, you can specify `transformation = "no"`. Importantly, we need to give `ebp()` the *untransformed* outcome variable in the `pov` object, since we are asking `ebp90` to then make the transformation.
+8. `na.rm = TRUE`: This tells the function to remove missing values. This is important because the function will not run if there are any missing values. Ideally, you should clean your data such that this option is not strictly necessary (i.e. there will already be no missing values).
+\normalsize
+
+
+
+## Specifying options e.g. weighting, transformations, benchmarking {#sec-options}
+
+We have already seen the use of one option: the transformation. But `ebp()` also takes other options, as well. Specifically, let's discuss weights and benchmarking options.
+
+For weights, we can specify two different types of weights: sample weights and population weights. 
+
+- Sample weights are weights that are used to adjust for the fact that some observations are more likely to be in the sample than others. In our case, we have already created these weights in the `pov` object; they are in the column called `total_weights`. 
+
+- Population weights are used to adjust for the fact that different subareas have different populations. Since we want to calculate a population-weighted poverty rate at the admin3 level, we can use the `pop_weights` option. We have estimated population (from WorldPop) in the column entitled `mwpop` in the `features` data.
+
+We can also *benchmark* the estimates such that they match existing official statistics for higher level geographies. In our example, we have data only from the Northern region of Malawi. The [2020 Malawi Poverty Report](https://microdata.worldbank.org/index.php/catalog/3818/related-materials) states that the official poverty rate for the region is 32.9 percent. We are using proportions, so we want to benchmark the overall values to equal 0.329, on average. We need to give the `ebp` function a *named vector*, where the name equals the indicator we want to benchmark and the value is the benchmark value. The function can benchmark for the the `"Mean"` or `"Head_Count"`. Although we are estimating head count poverty, we are actually estimating the mean poverty rate in each admin3 area. We can create the named vector as follows:
+
+\small
+```{r}
+#| echo: true
+#| eval: true
+bench <- c("Mean" = 0.329)
+```
+\normalsize
+
+Putting this all together, we can estimate our final model:
+
+\small
+```{r}
+#| echo: true
+#| eval: true
+#| output: false
+results <- ebp(
+  fixed = ebpformula,
+  pop_data = features,
+  pop_domains = "TA_CODE",
+  smp_data = pov,
+  smp_domains = "TA_CODE",
+  MSE = TRUE,
+  transformation = "arcsin",
+  na.rm = TRUE,
+  weights = "total_weights", # <1>
+  pop_weights = "mwpop", # <2>
+  weights_type = "nlme", # <3>
+  benchmark = bench # <4>
+  )
+```
+1. `weights = "total_weights"`: This is the sample weight. It is used to adjust for the fact that the survey data is not a simple random sample.
+2. `pop_weights = "mwpop"`: This is the population weight. It is used to adjust for the fact that different subareas have different populations.
+3. `weights_type = "nlme"`: This option is required when using an arcsin transformation. The default weighting type does not work with the arcsin transformation, unfortunately.
+4. `benchmark = bench`: This is the benchmarking option. We are benchmarking the mean poverty rate to equal 0.329, on average.
+\normalsize
+
+
+## Verifying the assumptions {#sec-assumptions}
+
+Now that we have estimated the model, we can look at some statistics to verify the assumptions of the model. Since we use a parametric bootstrap, the assumption of normality is important for both the residuals and the random effects. We can look at statistics for normality using the `summary()` function:
+
+\small
+```{r}
+#| echo: true
+#| eval: true
+summary(results)
+```
+\normalsize
+
+Specifically, there is a section of the output entitled "Residual diagnostics for the mixed model." Here, we can see the skewness and the kurtosis. For a normal distribution, these should be equal to zero and three, respectively. In this case, the kurtosis is a bit high for both the residuals and the random effects. This is not ideal, but given their values it is also not a huge cause for concern. We can also plot them using `plot(results)`:^[The plot is not shown here, but you can run it on your own.]
+
+\small
+```{r}
+#| echo: true
+#| eval: false
+plot(results)
+```
+\normalsize
+
+
+
+## Evaluating results {#sec-evaluation}
+
+The final step is to evaluate the results. We can do this in a number of ways. First, we can look at the r-squared value. Second, we can look at the change in precision from the sample to the modeled estimates. Third, we can validate the accuracy of the estimates. We will discuss each of these in turn.
+
+### R-squared {#sec-r2}
+
+The `summary()` function above also output information about r-squared. There are four separate r-squared values: the marginal area r-squared, the marginal unit r-squared, the conditional area r-squared, and the conditional unit r-squared. From experience, it is the area r-squared values that are most relevant to the quality of the output. This explains the proportion of the variance across *areas* that is explained by the model (either the coefficients or both the coefficients and the random effects). In our example, the conditional area r-squared is approximately 0.77, which is relatively high.
+
+### How much does precision change? {#sec-precision}
+
+Let's compare the new estimates to sample estimates. First, let's extract the results from the `results` object. Here, we are going to extract three things: the admin3 idenfitier, the modeled poverty rate, and the modeled variance estimates:
+
+\small
+```{r}
+#| echo: true
+#| eval: true
+resultsebp <- as_tibble(cbind(TA_CODE = levels(results$ind$Domain), # <1>
+  poor_ebp = results$ind$Mean_bench, # <2>
+  poor_ebp_var = results$MSE$Mean_bench)) # <3>
+```
+1. `TA_CODE = levels(results$ind$Domain)`: This is the admin3 identifier. It is stored as a factor variable, so we extract the levels instead of the values.
+2. `poor_ebp = results$ind$Mean`: This is the modeled poverty rate *after benchmarking*. It is stored in the `ind` object, which is the modeled estimates. Note that the `ind` object also includes the unbenchmarked estimates (in the column `Mean`).
+3. `poor_ebp_var = results$MSE$Mean_bench`: This is the modeled variance estimate. It is stored in the `MSE` object, which is the modeled variance estimates. The same note about benchmarking applies here.
+\normalsize
+
+Next, we will estimate sample estimates. We can do this using the `direct()` function from the `povmap` package. We are going to use the *household-level* data for this, not the admin4 data. The raw survey data is saved as a Stata file, so we read it using the `read_dta()` function from the `haven` package.^[Note that we create a new weight variable to estimate headcount poverty.]
+
+\small
+```{r}
+#| echo: true
+#| eval: true
+#| output: false
+hhs <- read_dta("data/ihshousehold/ihs5_consumption_aggregate.dta")
+hhs$weights <- hhs$adulteq*hhs$hh_wgt
+estimates <- direct(
+  y = "poor",
+  smp_data = hhs,
+  smp_domains = "TA",
+  weights = "weights",
+  var = TRUE,
+  HT = TRUE
+  )
+resultsdirect <- as_tibble(cbind(TA_CODE = levels(estimates$ind$Domain),
+  poor_dir = estimates$ind$Mean,
+  poor_dir_var = estimates$MSE$Mean))
+```
+\normalsize
+
+Now let's join the two together and turn the values into numeric values, as well as take the square root of the variance estimates to turn them into standard errors:
+
+\small
+```{r}
+#| echo: true
+#| eval: true
+#| output: false
+resultsall <- resultsebp |>
+  left_join(resultsdirect, by = "TA_CODE")
+resultsall <- resultsall |>
+  mutate(poor_ebp = as.numeric(poor_ebp),
+    poor_ebp_var = sqrt(as.numeric(poor_ebp_var)),
+    poor_dir = as.numeric(poor_dir),
+    poor_dir_var = sqrt(as.numeric(poor_dir_var)))
+```
+\normalsize
+
+Here are the results:
+```{r}
+#| echo: false
+#| eval: true
+#| label: tbl-precision
+#| tbl-cap: "Comparison of in-sample and out-of-sample estimates"
+means <- matrix(NA, nrow = 2, ncol = 4)
+colnames(means) <- c("Rate", "SE", "Rate", "SE")
+rownames(means) <- c("In sample", "Out of sample")
+means[1,1] <- mean(resultsall$poor_dir, na.rm = TRUE)
+means[1,2] <- mean(resultsall$poor_dir_var, na.rm = TRUE)
+means[1,3] <- mean(resultsall$poor_ebp[!is.na(resultsall$poor_dir)], na.rm = TRUE)
+means[1,4] <- mean(resultsall$poor_ebp_var[!is.na(resultsall$poor_dir)], na.rm = TRUE)
+means[2,3] <- mean(resultsall$poor_ebp[is.na(resultsall$poor_dir)], na.rm = TRUE)
+means[2,4] <- mean(resultsall$poor_ebp_var[is.na(resultsall$poor_dir)], na.rm = TRUE)
+
+table <- kable(means, digits = 3, format = "latex", booktabs = TRUE, align = "cccc") |>
+  add_header_above(header = c(" " = 1, "Direct" = 2, "EBP" = 2)) |>
+  column_spec(column = 1, width = "3cm") |>
+  column_spec(column = 2:5, width = "2cm") |>
+  row_spec(row = nrow(table)-2, hline_after = TRUE) |>
+  footnote("\\\\footnotesize{Note: The table shows mean poverty rates and standard errors using direct estimates (columns one and two) and EBP estimates (columns thre and four).}",
+    general_title = "",
+    threeparttable = TRUE,
+    footnote_as_chunk = TRUE,
+    escape = FALSE
+    ) |>
+  kable_classic_2()
+# replace \item with nothing
+table <- gsub("\\\\item", "", table)
+table <- gsub("\\\\addlinespace", "", table)
+table <- gsub("NA", "", table)
+table
+```
+
+The mean poverty rates are quite similar, but note that the standard errors are much smaller for the modeled estimates. This is because the model is able to "borrow strength" from other areas. In this example, the mean standard error decreases by about 45 percent, which is equivalent to a gain in precision from increasing the size of the survey by a factor of approximately 3.3.
+
+### How can we validate the accuracy? {#sec-accuracy}
+
+Validating the accuracy of results can be difficult. When developing new methods, we often use census data to provide "ground truth" information, which we can compare with our modeled estimates. Of course, if we always had access to census estimates of poverty, we would not need to estimate the small area model in the first place.
+
+In our case, with a sample, we can use the sample data itself to validate accuracy. How? Through cross validation. We can estimate the model on a subset of the data and then predict on the remaining data, similar to what we did above with lasso to select the variables. Here is a very simple example, where we only estimate poverty for one "fold," or one-fifth of the data. Importantly, however, we are estimating poverty at the admin3 (TA) level, which means we need to assign admin4 (EA) to folds at the admin3 level.
+
+\small
+```{r}
+#| echo: true
+#| eval: true
+#| output: false
+# get TAs
+povTAs <- unique(pov$TA_CODE)
+# assign folds - set seed so we get consistent results
+set.seed(2025)
+povTAs <- cbind(TA_CODE = povTAs, foldTA = sample(1:5, length(povTAs), replace = TRUE))
+# add back to pov
+pov <- pov |>
+  left_join(as_tibble(povTAs), by = "TA_CODE")
+
+resultscv <- ebp(
+  fixed = ebpformula,
+  pop_data = features,
+  pop_domains = "TA_CODE",
+  smp_data = pov[pov$foldTA!=1,],
+  smp_domains = "TA_CODE",
+  MSE = TRUE,
+  transformation = "arcsin",
+  na.rm = TRUE,
+  weights = "total_weights",
+  pop_weights = "mwpop",
+  weights_type = "nlme",
+  benchmark = bench
+  )
+povfold1 <- pov |>
+  filter(foldTA==1) |>
+  group_by(TA_CODE) |>
+  summarise(poor = weighted.mean(poor, total_weights, na.rm = TRUE)) |>
+  ungroup()
+resultscv <- as_tibble(cbind(TA_CODE = levels(resultscv$ind$Domain),
+  poor_ebp = resultscv$ind$Mean_bench,
+  poor_ebp_var = resultscv$MSE$Mean_bench))
+# turn to numeric in order to join with povfold1
+resultscv$TA_CODE <- as.numeric(resultscv$TA_CODE)
+resultscv <- povfold1 |>
+  left_join(resultscv, by = "TA_CODE") |>
+  mutate(poor_ebp = as.numeric(poor_ebp),
+    poor_ebp_var = sqrt(as.numeric(poor_ebp_var)))
+resultscv
+```
+\normalsize
+
+Now, we can look at statistics like correlations between the modeled and sample estimates, as well as the mean squared error. We can also plot the results, as in @fig-cvfold.
+
+
+\small
+```{r}
+#| label: fig-cvfold
+#| echo: false
+#| eval: true
+#| fig-cap: "Predicted-true poverty rates"
+ggplot(data = resultscv) +
+  geom_point(aes(x = poor, y = poor_ebp)) +
+  geom_abline(intercept = 0, slope = 1, linetype = "dotted") +
+  labs(x = "True poverty rate", y = "Predicted poverty rate") +
+  theme_bw(base_size = 8)
+```
+\normalsize
+
+The correlation here is approximately `r round(cor(resultscv$poor, resultscv$poor_ebp, use = "complete.obs"), 2)` for fold one. Note, however, that this could be an underestimate of the true correlation. Why? Because the sample itself has sampling error. This means that the sample estimate is not the "true" value, but rather a (sampled) estimate of it.
+
+
+\FloatBarrier
+\newpage
+# Mapping poverty {#sec-mapping}
+
+Our final step is to map the results. We can do this by joining the estimated poverty rates to the admin3 shapefile. Let's first load the shapefile and then join the results:
+
+\small
+```{r}
+#| echo: true
+#| eval: true
+admin3 <- vect("data/mw3.shp")
+admin3 <- admin3 |>
+  left_join(resultsall, by = "TA_CODE")
+admin3
+```
+\normalsize
+
+Finally, we can map poverty rates and standard errors. Specifically, let's map the poverty rate and the coefficient of variation, which is defined as the standard error divided by the mean. Here is the code:
+
+\small
+```{r}
+#| echo: true
+#| eval: false
+g1 <- ggplot() +
+  geom_spatvector(data = admin3, aes(fill = poor_ebp), color = NA) +
+  scale_fill_distiller("", palette = "Spectral") + 
+  labs(subtitle = "A. Poverty rate") +
+  theme_bw()
+g2 <- ggplot() +
+  geom_spatvector(data = admin3, aes(fill = poor_ebp_var/poor_ebp), color = NA) +
+  scale_fill_distiller("", palette = "Spectral") + 
+  labs(subtitle = "B. Poverty CV") +
+  theme_bw()
+```
+\normalsize
+
+And the output is in @fig-povmap. One thing to note is that the CV can be somewhat misleading in areas with very low poverty rates. This is particularly true in the capital of Northern Malawi, where poverty rates are below 0.1, leading to some of the highest CVs in the region.
+
+```{r}
+#| label: fig-povmap
+#| echo: false
+#| eval: true
+#| fig-cap: "Mapping poverty in Northern Malawi"
+g1 <- ggplot() +
+  geom_spatvector(data = admin3, aes(fill = poor_ebp), color = NA) +
+  scale_fill_distiller("", palette = "Spectral") + 
+  labs(subtitle = "A. Poverty rate") +
+  theme_bw(base_size = 8) +
+  theme(legend.position = "bottom")
+g2 <- ggplot() +
+  geom_spatvector(data = admin3, aes(fill = poor_ebp_var/poor_ebp), color = NA) +
+  scale_fill_distiller("", palette = "Spectral") + 
+  labs(subtitle = "B. Poverty CV") +
+  theme_bw(base_size = 8) +
+  theme(legend.position = "bottom")
+plot_grid(g1, g2)
+```
+
+\FloatBarrier
+\newpage
+# Wrapping up
+
+This guide has provided a practical example of how to apply Small Area Estimation (SAE) methods using geospatial data, with a specific focus on estimating poverty at the admin 3 level in Northern Malawi. We have covered each step of the process—from setting up the `R` environment and handling vector and raster data, to preparing survey datasets, engineering spatial features, estimating SAE models, and mapping the final results. While the example used here is for Malawi, the overall approach is designed to be generalisable. With suitable data, the same methods can be applied in a wide range of country contexts and for different SDG-related indicators.
+
+We note that we are not suggesting that the methods and data used here should always be a practitioner's starting point for SAE. For example, if recent census data is available, we would encourage practitioners to instead consider using methods appropriate for census data -- e.g. household-level models -- instead of the sub-area models we covered here. It is important to explore all possible available data and choose methods appropriate for those data.
+
+We also encourage users to read through other available resources, including the [SAE4SDGs wiki](https://unstats.un.org/wiki/spaces/SAE4SDG/overview ) and the [Primer on Small Area Estimation with Geospatial Data](https://unstats.un.org/UNSDWebsite/statcom/session_56/documents/BG-3p-Geospatial_SAE_Primer-E.pdf).
+
+\FloatBarrier
+\newpage
+# References {.unnumbered}
+
+::: {#refs}
+:::
+
+
+
+\newpage
+# Appendix {.appendix .unnumbered}
+
+
+\setcounter{equation}{0}
+\renewcommand{\theequation}{A\arabic{equation}}
+\setcounter{table}{0}
+\renewcommand{\thetable}{A\arabic{table}}
+\setcounter{figure}{0}
+\renewcommand{\thefigure}{A\arabic{figure}}
+\setcounter{footnote}{0}
+\renewcommand{\thefootnote}{A\arabic{footnote}}
+\setcounter{section}{0}
+\renewcommand{\thesection}{A\arabic{section}}
+
+```{r}
+#| label: fig-bboxexample
+#| fig-cap: A bounding box for Northern Malawi
+#| echo: false
+#| eval: true
+mw3 <- vect("data/mw3.shp")
+bbox <- vect(ext(mw3), crs = crs(mw3))
+ggplot() +
+  geom_spatvector(data = mw3, color = "gray", fill = NA) +
+  geom_spatvector(data = bbox, color = unblue, fill = NA) +
+  theme_bw(base_size = 8)
+```
+
