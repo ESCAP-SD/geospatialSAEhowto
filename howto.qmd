@@ -15,20 +15,20 @@ author:
       affiliations:
         - name: ESCAP
 format: 
-  # html:
-  #   toc: true
-  #   number-sections: true
-  #   colorlinks: true
-  #   code-line-numbers: true
-  #   fig-cap-location: top
-  #   comments:
-  #     hypothesis: true
-  pdf:
+  html:
     toc: true
     number-sections: true
     colorlinks: true
     code-line-numbers: true
     fig-cap-location: top
+    comments:
+      hypothesis: true
+  # pdf:
+  #   toc: true
+  #   number-sections: true
+  #   colorlinks: true
+  #   code-line-numbers: true
+  #   fig-cap-location: top
 bibliography: bib.bib
 execute:
   echo: false
