@@ -20,7 +20,7 @@ website:
     search: true
     logo: assets/image.png
     logo-alt: logo
-    logo-href: https://escap-sd.github.io/geospatialSAEhowto/pages/
+    logo-href: https://escap-sd.github.io/geospatialSAEhowto/docs/
     border: true
     tools:
       - icon: github
@@ -30,18 +30,18 @@ website:
       #   href: https://xtophe.notion.site/Web-Scraping-for-CPI-Training-c36b27c2ea6b4f02ad760069afaf6fb5
       #   text: "Notion site: home page for the overall web scraping training"
     contents:
-      - href: pages/index.qmd
+      - href: docs/index.qmd
         text: Introduction
       - section: 
-        href: pages/chapter1.qmd
+        href: docs/chapter1.qmd
         contents: 
-          - pages/chapter1-1.qmd
-          - pages/chapter1-2.qmd
+          - docs/chapter1-1.qmd
+          - docs/chapter1-2.qmd
       - section:
-      - href: pages/chapter2.qmd
+      - href: docs/chapter2.qmd
         contents:
-          - pages/chapter2-1.qmd
-          - pages/chapter2-2.qmd
+          - docs/chapter2-1.qmd
+          - docs/chapter2-2.qmd
   page-footer: 
     left: "2025, ESCAP"
 
