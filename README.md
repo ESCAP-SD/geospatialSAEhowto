@@ -38,8 +38,10 @@ Throughout this guide, we will be using data from Northern Malawi. The survey da
 
 While the guide uses example data for Malawi, the approach and code can be adapted to other countries and contexts. The examples assume a basic understanding of R, but the code is fully annotated for users to modify and build upon.
 
+You can find all of the code and data used on the GitHub repository for this guide in the current repository, with the original pdf version and relevant code on [this repository](https://github.com/JoshMerfeld/geospatialSAEhowto).
 
-You can find all of the code and data used on the GitHub repository for this guide, [here](https://github.com/JoshMerfeld/geospatialSAEhowto).
+
+
 
 
 
@@ -47,6 +49,6 @@ You can find all of the code and data used on the GitHub repository for this gui
 
 # References
 
-<a id="1">Ghosh, Malay. 2020. “Small area estimation: Its evolution in five decades.” Statistics in Transition. New Series 21 (4): 1–22.</a> 
+<a id="1"></a> Ghosh, Malay. 2020. “Small area estimation: Its evolution in five decades.” Statistics in Transition. New Series 21 (4): 1–22.
 
-<a id="2">Molina, Isabel, and Jon NK Rao. 2010. “Small Area Estimation of Poverty Indicators.” Canadian Journal of Statistics 38 (3): 369–85.</a>
+<a id="2"></a> Molina, Isabel, and Jon NK Rao. 2010. “Small Area Estimation of Poverty Indicators.” Canadian Journal of Statistics 38 (3): 369–85.
