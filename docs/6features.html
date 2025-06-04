@@ -223,7 +223,7 @@ window.Quarto = {
         <li class="sidebar-item">
   <div class="sidebar-item-container"> 
   <a href="./appendices.html" class="sidebar-item-text sidebar-link">
- <span class="menu-text">Appendix: Additional resources</span></a>
+ <span class="menu-text">Appendix</span></a>
   </div>
 </li>
     </ul>
@@ -236,11 +236,11 @@ window.Quarto = {
     <h2 id="toc-title">On this page</h2>
    
   <ul class="collapse">
-  <li><a href="#sec-features" id="toc-sec-features" class="nav-link active" data-scroll-target="#sec-features"><span class="header-section-number">3</span> Creating and selecting features</a>
+  <li><a href="#sec-features" id="toc-sec-features" class="nav-link active" data-scroll-target="#sec-features"><span class="header-section-number">6</span> Creating and selecting features</a>
   <ul class="collapse">
-  <li><a href="#sec-newfeatures" id="toc-sec-newfeatures" class="nav-link" data-scroll-target="#sec-newfeatures"><span class="header-section-number">3.1</span> Creating new features e.g.&nbsp;admin means</a></li>
-  <li><a href="#sec-transformations" id="toc-sec-transformations" class="nav-link" data-scroll-target="#sec-transformations"><span class="header-section-number">3.2</span> Thinking about transformations</a></li>
-  <li><a href="#sec-lasso" id="toc-sec-lasso" class="nav-link" data-scroll-target="#sec-lasso"><span class="header-section-number">3.3</span> lasso and <code>glmnet</code></a></li>
+  <li><a href="#sec-newfeatures" id="toc-sec-newfeatures" class="nav-link" data-scroll-target="#sec-newfeatures"><span class="header-section-number">6.1</span> Creating new features e.g.&nbsp;admin means</a></li>
+  <li><a href="#sec-transformations" id="toc-sec-transformations" class="nav-link" data-scroll-target="#sec-transformations"><span class="header-section-number">6.2</span> Thinking about transformations</a></li>
+  <li><a href="#sec-lasso" id="toc-sec-lasso" class="nav-link" data-scroll-target="#sec-lasso"><span class="header-section-number">6.3</span> lasso and <code>glmnet</code></a></li>
   </ul></li>
   </ul>
 </nav>
@@ -267,11 +267,11 @@ window.Quarto = {
 </header>
 
 
-<section id="sec-features" class="level1" data-number="3">
-<h1 data-number="3"><span class="header-section-number">3</span> Creating and selecting features</h1>
+<section id="sec-features" class="level1" data-number="6">
+<h1 data-number="6"><span class="header-section-number">6</span> Creating and selecting features</h1>
 <p>Once we have all of the geospatial features, we now need to think about choosing which features we want to use in our model and whether we want to use our raw features to create new indicators. Choosing features is particularly important with geospatial data due to the sheer number of features we can create. We have already created a number of features, but we can also create new features, transform existing features, and use lasso to select features. We will discuss each of these in turn. In this section, we will be using the final, cleaned version of features in the <code>data/geovarseas.csv</code> file.</p>
-<section id="sec-newfeatures" class="level2" data-number="3.1">
-<h2 data-number="3.1" class="anchored" data-anchor-id="sec-newfeatures"><span class="header-section-number">3.1</span> Creating new features e.g.&nbsp;admin means</h2>
+<section id="sec-newfeatures" class="level2" data-number="6.1">
+<h2 data-number="6.1" class="anchored" data-anchor-id="sec-newfeatures"><span class="header-section-number">6.1</span> Creating new features e.g.&nbsp;admin means</h2>
 <p>We will be estimating models at the admin-4 level. However, this does not mean that all of our predictors must necessarily be at the admin-4 level. For example, we can create means or standard deviations at higher levels (e.g.&nbsp;admin 3). We can also create lagged means or standard deviations at the admin 4 level, as well as interactions between different features.</p>
 <p>As a simple example, consider creating total population at the admin-3 level, in addition to the admin-4 level. Let’s first load the features into <code>R</code> and do a bit more cleaning:</p>
 <div class="cell" data-layout-align="center">
@@ -337,8 +337,8 @@ window.Quarto = {
 <li>Here we are looking at the first few rows of <code>df</code>, but <em>only</em> for the new columns we just created.</li>
 </ol>
 </section>
-<section id="sec-transformations" class="level2" data-number="3.2">
-<h2 data-number="3.2" class="anchored" data-anchor-id="sec-transformations"><span class="header-section-number">3.2</span> Thinking about transformations</h2>
+<section id="sec-transformations" class="level2" data-number="6.2">
+<h2 data-number="6.2" class="anchored" data-anchor-id="sec-transformations"><span class="header-section-number">6.2</span> Thinking about transformations</h2>
 <p>In addition to creating new variables through aggregation to a higher level of geography or combining data over time, we can also transform both our (potential) predictor variables and our outcome variable, through, for example, log transformations. Why might we want to transform our variables? There are two primary reasons:</p>
 <ol type="1">
 <li>Improve the predictive ability of the model. For example, a log transformation can sometimes make the relationship between a predictor and the outcome more linear, which is particularly important for linear models (which are the workhorse of SAE).</li>
@@ -434,8 +434,8 @@ Table&nbsp;1: Variable transformations
 </div>
 <p>Transforming just the outcome improves the fit, at least as measured by r-squared, by around 7.2 percent. All of the transformations, however, increase the predictive power of the regression by 27.8 percent. In other words, the transformations of just these two variables, along with the outcome, can lead to a substantial improvement in the model.<a href="#fn4" class="footnote-ref" id="fnref4" role="doc-noteref"><sup>4</sup></a></p>
 </section>
-<section id="sec-lasso" class="level2" data-number="3.3">
-<h2 data-number="3.3" class="anchored" data-anchor-id="sec-lasso"><span class="header-section-number">3.3</span> lasso and <code>glmnet</code></h2>
+<section id="sec-lasso" class="level2" data-number="6.3">
+<h2 data-number="6.3" class="anchored" data-anchor-id="sec-lasso"><span class="header-section-number">6.3</span> lasso and <code>glmnet</code></h2>
 <p>In the above sections, we have shown how transforming our predictor and outcome variables can improve the fit of a model. However, we have not yet discussed how to choose which features to actually include in the model. Including all potential predictors has two primary problems:</p>
 <ol type="1">
 <li>First, we often have more predictors than observations. In this case, it is impossible to estimate the model.</li>

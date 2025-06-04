@@ -106,6 +106,8 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
     document.body.classList.add('hypothesis-enabled');
   });
 </script>
+<script src="site_libs/kePrint-0.0.1/kePrint.js"></script>
+<link href="site_libs/lightable-0.0.1/lightable.css" rel="stylesheet">
 
 
 <link rel="stylesheet" href="styles.css">
@@ -194,7 +196,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
         <li class="sidebar-item">
   <div class="sidebar-item-container"> 
   <a href="./appendices.html" class="sidebar-item-text sidebar-link">
- <span class="menu-text">Appendix: Additional resources</span></a>
+ <span class="menu-text">Appendix</span></a>
   </div>
 </li>
     </ul>
@@ -207,13 +209,13 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
     <h2 id="toc-title">On this page</h2>
    
   <ul class="collapse">
-  <li><a href="#sec-estimating" id="toc-sec-estimating" class="nav-link active" data-scroll-target="#sec-estimating"><span class="header-section-number">3</span> Estimating the model</a>
+  <li><a href="#sec-estimating" id="toc-sec-estimating" class="nav-link active" data-scroll-target="#sec-estimating"><span class="header-section-number">7</span> Estimating the model</a>
   <ul class="collapse">
-  <li><a href="#sec-povmap" id="toc-sec-povmap" class="nav-link" data-scroll-target="#sec-povmap"><span class="header-section-number">3.1</span> povmap</a></li>
-  <li><a href="#sec-options" id="toc-sec-options" class="nav-link" data-scroll-target="#sec-options"><span class="header-section-number">3.2</span> Specifying options e.g.&nbsp;weighting, transformations, benchmarking</a></li>
-  <li><a href="#sec-assumptions" id="toc-sec-assumptions" class="nav-link" data-scroll-target="#sec-assumptions"><span class="header-section-number">3.3</span> Verifying the assumptions</a></li>
-  <li><a href="#sec-evaluation" id="toc-sec-evaluation" class="nav-link" data-scroll-target="#sec-evaluation"><span class="header-section-number">3.4</span> Evaluating results</a></li>
-  <li><a href="#references" id="toc-references" class="nav-link" data-scroll-target="#references"><span class="header-section-number">3.5</span> References</a></li>
+  <li><a href="#sec-povmap" id="toc-sec-povmap" class="nav-link" data-scroll-target="#sec-povmap"><span class="header-section-number">7.1</span> povmap</a></li>
+  <li><a href="#sec-options" id="toc-sec-options" class="nav-link" data-scroll-target="#sec-options"><span class="header-section-number">7.2</span> Specifying options e.g.&nbsp;weighting, transformations, benchmarking</a></li>
+  <li><a href="#sec-assumptions" id="toc-sec-assumptions" class="nav-link" data-scroll-target="#sec-assumptions"><span class="header-section-number">7.3</span> Verifying the assumptions</a></li>
+  <li><a href="#sec-evaluation" id="toc-sec-evaluation" class="nav-link" data-scroll-target="#sec-evaluation"><span class="header-section-number">7.4</span> Evaluating results</a></li>
+  <li><a href="#references" id="toc-references" class="nav-link" data-scroll-target="#references"><span class="header-section-number">7.5</span> References</a></li>
   </ul></li>
   </ul>
 </nav>
@@ -240,11 +242,11 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </header>
 
 
-<section id="sec-estimating" class="level1" data-number="3">
-<h1 data-number="3"><span class="header-section-number">3</span> Estimating the model</h1>
+<section id="sec-estimating" class="level1" data-number="7">
+<h1 data-number="7"><span class="header-section-number">7</span> Estimating the model</h1>
 <p>In this section, we will estimate the model we have been building up to. We will use an updated version of the <code>povmap</code> package, which is not yet on CRAN, so we will download the GitHub version.</p>
-<section id="sec-povmap" class="level2" data-number="3.1">
-<h2 data-number="3.1" class="anchored" data-anchor-id="sec-povmap"><span class="header-section-number">3.1</span> povmap</h2>
+<section id="sec-povmap" class="level2" data-number="7.1">
+<h2 data-number="7.1" class="anchored" data-anchor-id="sec-povmap"><span class="header-section-number">7.1</span> povmap</h2>
 <p>The <code>povmap</code> package contains many functions that enable small area estimation using a variety of methods. The package is under active development, but its CRAN version is stable. You can find a pdf of the package’s documentation <a href="https://cran.r-project.org/web/packages/povmap/povmap.pdf">here</a> and you can find more updated versions – that are not yet on CRAN – on the World Bank’s Sub-Saharan Africa Statistical Team’s GitHub page <a href="https://github.com/SSA-Statistical-Team-Projects/povmap">here</a>. As noted, we are not going to use the CRAN version. Instead, we are going to use a more updated version that includes different options for the <code>ebp()</code> function. Here is the code to install the package off GitHub:</p>
 <div class="cell" data-layout-align="center">
 <div class="sourceCode cell-code" id="cb1"><pre class="sourceCode numberSource r number-lines code-with-copy"><code class="sourceCode r"><span id="cb1-1"><a href="#cb1-1"></a>devtools<span class="sc">::</span><span class="fu">install_github</span>(<span class="st">"SSA-Statistical-Team-Projects/povmap"</span>, <span class="at">ref =</span> <span class="st">"david3"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
@@ -302,8 +304,8 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </div>
 </div>
 </section>
-<section id="sec-options" class="level2" data-number="3.2">
-<h2 data-number="3.2" class="anchored" data-anchor-id="sec-options"><span class="header-section-number">3.2</span> Specifying options e.g.&nbsp;weighting, transformations, benchmarking</h2>
+<section id="sec-options" class="level2" data-number="7.2">
+<h2 data-number="7.2" class="anchored" data-anchor-id="sec-options"><span class="header-section-number">7.2</span> Specifying options e.g.&nbsp;weighting, transformations, benchmarking</h2>
 <p>We have already seen the use of one option: the transformation. But <code>ebp()</code> also takes other options, as well. Specifically, let’s discuss weights and benchmarking options.</p>
 <p>For weights, we can specify two different types of weights: sample weights and population weights.</p>
 <ul>
@@ -352,8 +354,8 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </div>
 </div>
 </section>
-<section id="sec-assumptions" class="level2" data-number="3.3">
-<h2 data-number="3.3" class="anchored" data-anchor-id="sec-assumptions"><span class="header-section-number">3.3</span> Verifying the assumptions</h2>
+<section id="sec-assumptions" class="level2" data-number="7.3">
+<h2 data-number="7.3" class="anchored" data-anchor-id="sec-assumptions"><span class="header-section-number">7.3</span> Verifying the assumptions</h2>
 <p>Now that we have estimated the model, we can look at some statistics to verify the assumptions of the model. Since we use a parametric bootstrap, the assumption of normality is important for both the residuals and the random effects. We can look at statistics for normality using the <code>summary()</code> function:</p>
 <div class="cell" data-layout-align="center">
 <div class="sourceCode cell-code" id="cb3"><pre class="sourceCode numberSource r number-lines code-with-copy"><code class="sourceCode r"><span id="cb3-1"><a href="#cb3-1"></a><span class="fu">summary</span>(results)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
@@ -412,15 +414,15 @@ Transformation:
 <div class="sourceCode cell-code" id="cb5"><pre class="sourceCode numberSource r number-lines code-with-copy"><code class="sourceCode r"><span id="cb5-1"><a href="#cb5-1"></a><span class="fu">plot</span>(results)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
 </section>
-<section id="sec-evaluation" class="level2" data-number="3.4">
-<h2 data-number="3.4" class="anchored" data-anchor-id="sec-evaluation"><span class="header-section-number">3.4</span> Evaluating results</h2>
+<section id="sec-evaluation" class="level2" data-number="7.4">
+<h2 data-number="7.4" class="anchored" data-anchor-id="sec-evaluation"><span class="header-section-number">7.4</span> Evaluating results</h2>
 <p>The final step is to evaluate the results. We can do this in a number of ways. First, we can look at the r-squared value. Second, we can look at the change in precision from the sample to the modeled estimates. Third, we can validate the accuracy of the estimates. We will discuss each of these in turn.</p>
-<section id="sec-r2" class="level3" data-number="3.4.1">
-<h3 data-number="3.4.1" class="anchored" data-anchor-id="sec-r2"><span class="header-section-number">3.4.1</span> R-squared</h3>
+<section id="sec-r2" class="level3" data-number="7.4.1">
+<h3 data-number="7.4.1" class="anchored" data-anchor-id="sec-r2"><span class="header-section-number">7.4.1</span> R-squared</h3>
 <p>The <code>summary()</code> function above also output information about r-squared. There are four separate r-squared values: the marginal area r-squared, the marginal unit r-squared, the conditional area r-squared, and the conditional unit r-squared. From experience, it is the area r-squared values that are most relevant to the quality of the output. This explains the proportion of the variance across <em>areas</em> that is explained by the model (either the coefficients or both the coefficients and the random effects). In our example, the conditional area r-squared is approximately 0.77, which is relatively high.</p>
 </section>
-<section id="sec-precision" class="level3" data-number="3.4.2">
-<h3 data-number="3.4.2" class="anchored" data-anchor-id="sec-precision"><span class="header-section-number">3.4.2</span> How much does precision change?</h3>
+<section id="sec-precision" class="level3" data-number="7.4.2">
+<h3 data-number="7.4.2" class="anchored" data-anchor-id="sec-precision"><span class="header-section-number">7.4.2</span> How much does precision change?</h3>
 <p>Let’s compare the new estimates to sample estimates. First, let’s extract the results from the <code>results</code> object. Here, we are going to extract three things: the admin3 idenfitier, the modeled poverty rate, and the modeled variance estimates:</p>
 <div class="cell" data-layout-align="center">
 <div class="sourceCode cell-code" id="annotated-cell-7"><pre class="sourceCode numberSource r code-annotation-code number-lines code-with-copy code-annotated"><code class="sourceCode r"><a class="code-annotation-anchor" data-target-cell="annotated-cell-7" data-target-annotation="1" onclick="event.preventDefault();">1</a><span id="annotated-cell-7-1" class="code-annotation-target"><a href="#annotated-cell-7-1"></a>resultsebp <span class="ot">&lt;-</span> <span class="fu">as_tibble</span>(<span class="fu">cbind</span>(<span class="at">TA_CODE =</span> <span class="fu">levels</span>(results<span class="sc">$</span>ind<span class="sc">$</span>Domain),</span>
@@ -467,7 +469,8 @@ Transformation:
 <span id="cb7-4"><a href="#cb7-4"></a>  <span class="fu">mutate</span>(<span class="at">poor_ebp =</span> <span class="fu">as.numeric</span>(poor_ebp),</span>
 <span id="cb7-5"><a href="#cb7-5"></a>    <span class="at">poor_ebp_var =</span> <span class="fu">sqrt</span>(<span class="fu">as.numeric</span>(poor_ebp_var)),</span>
 <span id="cb7-6"><a href="#cb7-6"></a>    <span class="at">poor_dir =</span> <span class="fu">as.numeric</span>(poor_dir),</span>
-<span id="cb7-7"><a href="#cb7-7"></a>    <span class="at">poor_dir_var =</span> <span class="fu">sqrt</span>(<span class="fu">as.numeric</span>(poor_dir_var)))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<span id="cb7-7"><a href="#cb7-7"></a>    <span class="at">poor_dir_var =</span> <span class="fu">sqrt</span>(<span class="fu">as.numeric</span>(poor_dir_var)))</span>
+<span id="cb7-8"><a href="#cb7-8"></a><span class="fu">saveRDS</span>(resultsall, <span class="st">"assets/resultsall.rds"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
 <p>Here are the results:</p>
 <div class="cell" data-layout-align="center">
@@ -478,6 +481,50 @@ Table&nbsp;1: Comparison of in-sample and out-of-sample estimates
 </figcaption>
 <div aria-describedby="tbl-precision-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
 <div class="cell-output-display">
+<table class="lightable-classic-2 do-not-create-environment cell caption-top table table-sm table-striped small" data-quarto-postprocess="true">
+<colgroup>
+<col style="width: 20%">
+<col style="width: 20%">
+<col style="width: 20%">
+<col style="width: 20%">
+<col style="width: 20%">
+</colgroup>
+<thead>
+<tr class="header">
+<th data-quarto-table-cell-role="th" style="text-align: left; empty-cells: hide; border-bottom: hidden;"></th>
+<th colspan="2" data-quarto-table-cell-role="th" style="text-align: center; border-bottom: hidden; padding-bottom: 0; padding-left: 3px; padding-right: 3px;"><div style="border-bottom: 1px solid #ddd; padding-bottom: 5px; ">
+Direct
+</div></th>
+<th colspan="2" data-quarto-table-cell-role="th" style="text-align: center; border-bottom: hidden; padding-bottom: 0; padding-left: 3px; padding-right: 3px;"><div style="border-bottom: 1px solid #ddd; padding-bottom: 5px; ">
+EBP
+</div></th>
+</tr>
+<tr class="even">
+<th style="text-align: left;" data-quarto-table-cell-role="th"></th>
+<th style="text-align: center;" data-quarto-table-cell-role="th">Rate</th>
+<th style="text-align: center;" data-quarto-table-cell-role="th">SE</th>
+<th style="text-align: center;" data-quarto-table-cell-role="th">Rate</th>
+<th style="text-align: center;" data-quarto-table-cell-role="th">SE</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: left; width: 3cm;">In sample</td>
+<td style="text-align: center; width: 2cm;">0.318</td>
+<td style="text-align: center; width: 2cm;">0.128</td>
+<td style="text-align: center; width: 2cm;">0.306</td>
+<td style="text-align: center; width: 2cm;">0.070</td>
+</tr>
+<tr class="even">
+<td style="text-align: left; width: 3cm;">Out of sample</td>
+<td style="text-align: center; width: 2cm;">NA</td>
+<td style="text-align: center; width: 2cm;">NA</td>
+<td style="text-align: center; width: 2cm;">0.231</td>
+<td style="text-align: center; width: 2cm;">0.114</td>
+</tr>
+</tbody>
+</table>
+
 
 </div>
 </div>
@@ -486,8 +533,8 @@ Table&nbsp;1: Comparison of in-sample and out-of-sample estimates
 </div>
 <p>The mean poverty rates are quite similar, but note that the standard errors are much smaller for the modeled estimates. This is because the model is able to “borrow strength” from other areas. In this example, the mean standard error decreases by about 45 percent, which is equivalent to a gain in precision from increasing the size of the survey by a factor of approximately 3.3.</p>
 </section>
-<section id="sec-accuracy" class="level3" data-number="3.4.3">
-<h3 data-number="3.4.3" class="anchored" data-anchor-id="sec-accuracy"><span class="header-section-number">3.4.3</span> How can we validate the accuracy?</h3>
+<section id="sec-accuracy" class="level3" data-number="7.4.3">
+<h3 data-number="7.4.3" class="anchored" data-anchor-id="sec-accuracy"><span class="header-section-number">7.4.3</span> How can we validate the accuracy?</h3>
 <p>Validating the accuracy of results can be difficult. When developing new methods, we often use census data to provide “ground truth” information, which we can compare with our modeled estimates. Of course, if we always had access to census estimates of poverty, we would not need to estimate the small area model in the first place.</p>
 <p>In our case, with a sample, we can use the sample data itself to validate accuracy. How? Through cross validation. We can estimate the model on a subset of the data and then predict on the remaining data, similar to what we did above with lasso to select the variables. Here is a very simple example, where we only estimate poverty for one “fold,” or one-fifth of the data. Importantly, however, we are estimating poverty at the admin3 (TA) level, which means we need to assign admin4 (EA) to folds at the admin3 level.</p>
 <div class="cell" data-layout-align="center">
@@ -548,8 +595,8 @@ Figure&nbsp;1: Predicted-true poverty rates
 <p>The correlation here is approximately 0.81 for fold one. Note, however, that this could be an underestimate of the true correlation. Why? Because the sample itself has sampling error. This means that the sample estimate is not the “true” value, but rather a (sampled) estimate of it.</p>
 </section>
 </section>
-<section id="references" class="level2" data-number="3.5">
-<h2 data-number="3.5" class="anchored" data-anchor-id="references"><span class="header-section-number">3.5</span> References</h2>
+<section id="references" class="level2" data-number="7.5">
+<h2 data-number="7.5" class="anchored" data-anchor-id="references"><span class="header-section-number">7.5</span> References</h2>
 <p><a id="1"></a> Molina, Isabel, and Jon NK Rao. 2010. “Small Area Estimation of Poverty Indicators.” Canadian Journal of Statistics 38 (3): 369–85.</p>
 
 
