@@ -38,7 +38,12 @@ Throughout this guide, we will be using data from Northern Malawi. The survey da
 
 While the guide uses example data for Malawi, the approach and code can be adapted to other countries and contexts. The examples assume a basic understanding of R, but the code is fully annotated for users to modify and build upon.
 
-You can find all of the code and data used on the GitHub repository for this guide in the current repository, with the original pdf version and relevant code on [this repository](https://github.com/JoshMerfeld/geospatialSAEhowto).
+You can find all of the code and data used on the GitHub repository for this guide in the current repository, with the original pdf version and relevant code on [this repository](https://github.com/JoshMerfeld/geospatialSAEhowto). The relevant code are:
+
+- [howto.qmd](howto.qmd): This is the script that creates the pdf version of this guide. It contains code chunks and a walk through of the steps to perform small area estimation with geospatial data in R.
+- [data](data): This folder contains the data used in this guide, including the survey data and geospatial data.
+- [geoaggregation.R](geoaggregation.R): This script contains the code to aggregate the geospatial data for Northern Malawi. It is used in the guide to prepare the data for small area estimation.
+- [geospatialpull.pynb](geospatialpull.ipynb): This Jupyter notebook contains the code to pull geospatial data using the Google Earth Engine API in Python. We suggest using Google Colab to run this code, as it is set up to work with the Google Earth Engine API. The notebook is designed to be run in a Jupyter environment, such as Google Colab or an installation on your local machine, and will pull the necessary geospatial data for Northern Malawi.
 
 
 
