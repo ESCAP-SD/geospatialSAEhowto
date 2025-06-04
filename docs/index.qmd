@@ -1,0 +1,12 @@
+---
+title: "Geospatial small area estimation: A how-to guide"
+author: Haoyi Chen, Josh Merfeld, David Newhouse, and Richard Pearce Tonkin 
+format:
+    html:
+        toc: true
+        toc-expand: 2
+---
+
+![](assets/escap.png)
+
+test
