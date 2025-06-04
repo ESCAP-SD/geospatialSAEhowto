@@ -47,6 +47,7 @@ You can find all of the code and data used on the GitHub repository for this gui
 
 [howto.pdf](howto.pdf#sec-R)
 
+@howto.pdf#sec-R
 
 
 
