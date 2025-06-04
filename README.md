@@ -38,7 +38,7 @@ Throughout this guide, we will be using data from Northern Malawi. The survey da
 
 While the guide uses example data for Malawi, the approach and code can be adapted to other countries and contexts. The examples assume a basic understanding of R, but the code is fully annotated for users to modify and build upon.
 
-In addition to the [PDF version of the guide itself](howto.pdf), you can find all of the code and data used on the GitHub repository for this guide in the current repository, with the original pdf version and relevant code on [this repository](https://github.com/JoshMerfeld/geospatialSAEhowto). The relevant code are:
+In addition to the [PDF version of the guide itself](howto.pdf), you can find all of the code and data used in this guide in the current repository, with the original pdf version and relevant code on [this repository](https://github.com/JoshMerfeld/geospatialSAEhowto). The relevant code are:
 
 - [howto.qmd](howto.qmd): This is the script that creates the pdf version of this guide. It contains code chunks and a walk through of the steps to perform small area estimation with geospatial data in R.
 - [data](data): This folder contains the data used in this guide, including the survey data and geospatial data.
