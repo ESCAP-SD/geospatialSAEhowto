@@ -2,7 +2,11 @@
 
 # A guide to small area estimation with geospatial data in R
 
-Authors: Haoyi Chen (UNSD), Josh Merfeld (University of Queensland and IZA), David Newhouse (World Bank and IZA), Richard Pearce Tonkin (UN ESCAP)
+Authors: <br>
+Haoyi Chen (UNSD) <br>
+Josh Merfeld (University of Queensland and IZA) <br>
+David Newhouse (World Bank and IZA) <br>
+Richard Pearce Tonkin (UN ESCAP) <br>
 
 
 
