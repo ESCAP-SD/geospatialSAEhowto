@@ -1,24 +1,13 @@
----
-title: "Geospatial small area estimation in R"
-author: 
-    - name: Haoyi Chen
-      affiliations:
-        - name: UNSD
-    - name: Josh Merfeld
-      affiliations:
-        - name: University of Queensland and IZA
-    - name: David Newhouse
-      affiliations:
-        - name: World Bank and IZA
-    - name: Richard Pearce Tonkin
-      affiliations:
-        - name: UN ESCAP
----
+
+
+# A guide to small area estimation with geospatial data in R
+Authors: Haoyi Chen^[UNSD], Josh Merfeld^[University of Queensland and IZA], David Newhouse^[World Bank and IZA], Richard Pearce Tonkin^[UN ESCAP]
+
 
 
 <img src="assets/escap.png" alt="drawing" width="200"/>
 
-# A guide to small area estimation with geospatial data in R
+
 
 Small area estimation (SAE) refers to a set of statistical methods that enable statisticians to create estimates for outcomes of interest at levels of aggregation when sample sizes are too small to generate reliable direct estimates. “Small area” typically refers to administrative or other geographic areas. However, it can also refer to subpopulations for which sample sizes are too small for reliable parameter estimation. 
 
