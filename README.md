@@ -45,7 +45,7 @@ You can find all of the code and data used on the GitHub repository for this gui
 - [geoaggregation.R](geoaggregation.R): This script contains the code to aggregate the geospatial data for Northern Malawi. It is used in the guide to prepare the data for small area estimation.
 - [geospatialpull.pynb](geospatialpull.ipynb): This Jupyter notebook contains the code to pull geospatial data using the Google Earth Engine API in Python. We suggest using Google Colab to run this code, as it is set up to work with the Google Earth Engine API. The notebook is designed to be run in a Jupyter environment, such as Google Colab or an installation on your local machine, and will pull the necessary geospatial data for Northern Malawi.
 
-
+[howto.pdf](howto.pdf#sec-R)
 
 
 
