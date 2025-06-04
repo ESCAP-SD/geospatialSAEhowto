@@ -194,7 +194,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
         <li class="sidebar-item">
   <div class="sidebar-item-container"> 
   <a href="./appendices.html" class="sidebar-item-text sidebar-link">
- <span class="menu-text">Appendix: Additional resources</span></a>
+ <span class="menu-text">Appendix</span></a>
   </div>
 </li>
     </ul>
@@ -207,9 +207,9 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
     <h2 id="toc-title">On this page</h2>
    
   <ul class="collapse">
-  <li><a href="#sec-surveydata" id="toc-sec-surveydata" class="nav-link active" data-scroll-target="#sec-surveydata"><span class="header-section-number">3</span> Survey data</a>
+  <li><a href="#sec-surveydata" id="toc-sec-surveydata" class="nav-link active" data-scroll-target="#sec-surveydata"><span class="header-section-number">5</span> Survey data</a>
   <ul class="collapse">
-  <li><a href="#sec-surveys" id="toc-sec-surveys" class="nav-link" data-scroll-target="#sec-surveys"><span class="header-section-number">3.1</span> Getting the survey data ready</a></li>
+  <li><a href="#sec-surveys" id="toc-sec-surveys" class="nav-link" data-scroll-target="#sec-surveys"><span class="header-section-number">5.1</span> Getting the survey data ready</a></li>
   </ul></li>
   </ul>
 </nav>
@@ -236,11 +236,11 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </header>
 
 
-<section id="sec-surveydata" class="level1" data-number="3">
-<h1 data-number="3"><span class="header-section-number">3</span> Survey data</h1>
+<section id="sec-surveydata" class="level1" data-number="5">
+<h1 data-number="5"><span class="header-section-number">5</span> Survey data</h1>
 <p>We have already had a glimpse of the household survey data, when looking at the GPS coordinates of the households. However, we need to take a few more steps before continuing: We need to combine the GPS data with poverty data, and then aggregate it to the admin 4 level for estimating the SAE model.</p>
-<section id="sec-surveys" class="level2" data-number="3.1">
-<h2 data-number="3.1" class="anchored" data-anchor-id="sec-surveys"><span class="header-section-number">3.1</span> Getting the survey data ready</h2>
+<section id="sec-surveys" class="level2" data-number="5.1">
+<h2 data-number="5.1" class="anchored" data-anchor-id="sec-surveys"><span class="header-section-number">5.1</span> Getting the survey data ready</h2>
 <p>The first step is to load both the household GPS data and the poverty data,<a href="#fn1" class="footnote-ref" id="fnref1" role="doc-noteref"><sup>1</sup></a> remove households with missing coordinates or that have coordinates of (0, 0), and then join the two household datasets together.</p>
 <div class="cell" data-layout-align="center">
 <div class="sourceCode cell-code" id="cb1"><pre class="sourceCode numberSource r number-lines code-with-copy"><code class="sourceCode r"><span id="cb1-1"><a href="#cb1-1"></a><span class="co"># load both datasets</span></span>
