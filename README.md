@@ -42,3 +42,8 @@ While the guide uses example data for Malawi, the approach and code can be adapt
 You can find all of the code and data used on the GitHub repository for this guide, [here](https://github.com/JoshMerfeld/geospatialSAEhowto).
 
 
+
+
+
+# References
+
