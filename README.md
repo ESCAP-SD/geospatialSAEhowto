@@ -40,10 +40,10 @@ While the guide uses example data for Malawi, the approach and code can be adapt
 
 In addition to a [PDF version of the guide](howto.pdf), you can find all of the code and data used in this guide in the current repository. The relevant code are:
 
-- [howto.qmd](howto.qmd): This is the script that creates the pdf version of this guide. It contains code chunks and a walk through of the steps to perform small area estimation with geospatial data in R.
 - [data](data): This folder contains the data used in this guide, including the survey data and geospatial data.
 - [geoaggregation.R](geoaggregation.R): This script contains the code to aggregate the geospatial data for Northern Malawi. It is used in the guide to prepare the data for small area estimation.
 - [geospatialpull.pynb](geospatialpull.ipynb): This Jupyter notebook contains the code to pull geospatial data using the Google Earth Engine API in Python. We suggest using Google Colab to run this code, as it is set up to work with the Google Earth Engine API. The notebook is designed to be run in a Jupyter environment, such as Google Colab or an installation on your local machine, and will pull the necessary geospatial data for Northern Malawi.
+- [povmap-david3.zip](povmap-david3.zip): This zip file contains the exact version of the `povmap` package used in the guide. You can install it by running `devtools::install_local("PATH TO povmap-david3.zip")` (this assumes you have the `devtools` package installed; you will also need to change the path to the exact path of the .zip file on your machine).
 
 
 
