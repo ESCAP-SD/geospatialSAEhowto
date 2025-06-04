@@ -6,7 +6,7 @@ execute:
 
 website:
   title: "Geospatial small area estimation - A how-to guide"
-  favicon: docs/images/favicon.drawio.svg
+  favicon: assets/image.png
   repo-url: https://github.com/ESCAP-SD/geospatialSAEhowto
   issue-url: https://github.com/ESCAP-SD/geospatialSAEhowto/issues/new
   repo-actions: [issue, source]
