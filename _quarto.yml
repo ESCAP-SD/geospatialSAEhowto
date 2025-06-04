@@ -32,7 +32,7 @@ website:
     contents:
       - href: docs/index.qmd
         text: Introduction
-      - section: 
+      - section: s
         href: docs/chapter1.qmd
         contents: 
           - docs/chapter1-1.qmd
