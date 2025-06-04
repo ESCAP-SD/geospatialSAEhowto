@@ -1,0 +1,71 @@
+---
+title: "Geospatial small area estimation in R"
+author: "Haoyi Chen, Josh Merfeld, David Newhouse, and Richard Pearce Tonkin"
+---
+
+# R setup {#sec-R}
+
+Before following this guide, you should have `R` already installed on their computer. If you do not, you can download `R` [here](https://cran.r-project.org/).
+
+To get started, it is *strongly* suggested that you create a new folder on their computer, where you can save the scripts (@sec-Rsetup), any data you download, and any outputs you create. This will help keep everything organized and make it easier to find files in the future. This will also make it easier to complete this guide, as you can easily stop and resume at a later point in time.
+
+If you want to follow the exact steps in this guide, you should also create a `data` subfolder in your new folder. Inside the `data` folder, you will store all of the downloaded data from GitHub. However, you will want the working directory to always be set to the main folder, *not* the `data` folder.
+
+
+## RStudio {#sec-Rsetup}
+
+The main goal is to use `R` to perform small area estimation with geospatial data. As part of this, we will be using  `RStudio`, a free and open-source integrated development environment for `R`. While it is not strictly necessary to use `RStudio`, it has a variety of features that make it easier to work with `R`, especially for people just learning the language. You can download `RStudio` [here](https://www.rstudio.com/products/rstudio/download/).^[There are many alternative IDEs. For example, [Visual Studio Code](https://code.visualstudio.com/) has an `R` extension that can be used to write and run `R` code. Other IDEs include [Jupyter](https://jupyter.org/) and [Positron](https://github.com/posit-dev/positron), the latter of which is still under development. However, we will not cover any of these alternatives in this guide.]
+
+A key feature of IDEs is the ability to run code from a script. A script is essentially a text file that includes only the code you want to run. Scripts are particularly useful for reproducibility, as they allow you to save all of the code you have written and run it again at a later time. In `RStudio`, you can create a new script by clicking on `File` > `New File` > `R Script`. 
+
+After writing code, you can run it by clicking on the `Run` button in the top right corner of the script window or by using the appropriate shortcut.^[On Windows, the default shortcut is `Ctrl` + `Enter`. On Mac, the default shortcut is `Cmd` + `Enter`.] You can run a single line of code by placing your cursor on that line and using the shortcut. Additionally, you can highlight multiple lines of code and run them all in the same fashion. An important note: if you want to highlight multiple lines of code to run, you *must* highlight the whole of each line; if you only highlight part of a line, the code will not run.
+
+An important complement to creating new folders and a new script is to have your working directory set to that folder, as well. There are several ways to do this:
+
+1. If RStudio is *closed*, opening the script from within the folder will automatically set the working directory to that folder (the location of the script).
+2. If RStudio is *open*, you can set the working directory by clicking on `Session` > `Set Working Directory` > `To Source File Location`. This will set the working directory to the location of the script.
+3. You can also set the working directory using the `setwd()` function. For example, if you have a folder called `geospatialSAE` on your desktop, you can set the working directory to that folder using `setwd("~/Desktop/geospatialSAE")`, or something similar, depending on your machine's file structure. In general, we suggest not doing this in your script. The reason for this is simple: if you share your script with someone else, the working directory will not be the same for them as it is for you. Instead, we suggest using the first two methods, which are more reproducible.
+
+
+
+## Packages {#sec-Rpackages}
+
+We be using the following packages in this guide:
+
+- `tidyverse`
+- `terra`
+- `tidyterra`
+- `povmap`
+- `glmnet`
+- `haven`
+
+To get started, you will need to install these packages. You can do this by running the following code:
+
+\small
+```{r}
+#| echo: true
+#| eval: false
+install.packages(c("tidyverse", "terra", "tidyterra", "povmap", "glmnet", "haven"))
+```
+\normalsize
+
+You only need to install packages once on any given computer. As such, you do not necessarily need to have these in your script; you can instead install them in the console.
+
+However, while you only need to install the packages once, you will have to load them every time you start a new `R` session. This is done using the `library()` function, as follows:^[Note the use of a hashtag (\#) to create a comment on line 1. This causes `R` to ignore the line, so it will not be run. Such comments are used to provide context to the reader.]
+
+\small
+```{r}
+#| echo: true
+#| eval: false
+# Load libraries
+library(tidyverse)
+library(terra)
+library(tidyterra)
+library(povmap)
+library(glmnet)
+library(haven)
+```
+\normalsize
+
+It is common practice to always start `R` scripts by loading the libraries you will be using. This way, you can be sure all of the functions you need are available.
+

@@ -1,0 +1,1333 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"><head>
+
+<meta charset="utf-8">
+<meta name="generator" content="quarto-1.6.41">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+
+
+<title>Rasters – Geospatial small area estimation in R</title>
+<style>
+code{white-space: pre-wrap;}
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: min(4vw, 1.5em);}
+div.column{flex: auto; overflow-x: auto;}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+  width: 0.8em;
+  margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
+  vertical-align: middle;
+}
+/* CSS for syntax highlighting */
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { display: inline-block; text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+  { counter-reset: source-line 0; }
+pre.numberSource code > span
+  { position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+  { content: counter(source-line);
+    position: relative; left: -1em; text-align: right; vertical-align: baseline;
+    border: none; display: inline-block;
+    -webkit-touch-callout: none; -webkit-user-select: none;
+    -khtml-user-select: none; -moz-user-select: none;
+    -ms-user-select: none; user-select: none;
+    padding: 0 4px; width: 4em;
+  }
+pre.numberSource { margin-left: 3em;  padding-left: 4px; }
+div.sourceCode
+  {   }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
+</style>
+
+
+<script src="site_libs/quarto-nav/quarto-nav.js"></script>
+<script src="site_libs/quarto-nav/headroom.min.js"></script>
+<script src="site_libs/clipboard/clipboard.min.js"></script>
+<script src="site_libs/quarto-search/autocomplete.umd.js"></script>
+<script src="site_libs/quarto-search/fuse.min.js"></script>
+<script src="site_libs/quarto-search/quarto-search.js"></script>
+<meta name="quarto:offset" content="./">
+<script src="site_libs/quarto-html/quarto.js"></script>
+<script src="site_libs/quarto-html/popper.min.js"></script>
+<script src="site_libs/quarto-html/tippy.umd.min.js"></script>
+<script src="site_libs/quarto-html/anchor.min.js"></script>
+<link href="site_libs/quarto-html/tippy.css" rel="stylesheet">
+<link href="site_libs/quarto-html/quarto-syntax-highlighting-48ffa3e5b9d089919c6712c39e5b00f2.css" rel="stylesheet" id="quarto-text-highlighting-styles">
+<script src="site_libs/bootstrap/bootstrap.min.js"></script>
+<link href="site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
+<link href="site_libs/bootstrap/bootstrap-2be10d9e998f81ff6e49e26833438aa5.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
+<script id="quarto-search-options" type="application/json">{
+  "location": "sidebar",
+  "copy-button": false,
+  "collapse-after": 3,
+  "panel-placement": "start",
+  "type": "textbox",
+  "limit": 50,
+  "keyboard-shortcut": [
+    "f",
+    "/",
+    "s"
+  ],
+  "show-item-context": false,
+  "language": {
+    "search-no-results-text": "No results",
+    "search-matching-documents-text": "matching documents",
+    "search-copy-link-title": "Copy link to search",
+    "search-hide-matches-text": "Hide additional matches",
+    "search-more-match-text": "more match in this document",
+    "search-more-matches-text": "more matches in this document",
+    "search-clear-button-title": "Clear",
+    "search-text-placeholder": "",
+    "search-detached-cancel-button-title": "Cancel",
+    "search-submit-button-title": "Submit",
+    "search-label": "Search"
+  }
+}</script>
+<script async="" src="https://hypothes.is/embed.js"></script>
+<script>
+  window.document.addEventListener("DOMContentLoaded", function (_event) {
+    document.body.classList.add('hypothesis-enabled');
+  });
+</script>
+
+
+<link rel="stylesheet" href="styles.css">
+</head>
+
+<body class="nav-sidebar docked">
+
+<div id="quarto-search-results"></div>
+  <header id="quarto-header" class="headroom fixed-top">
+  <nav class="quarto-secondary-nav">
+    <div class="container-fluid d-flex">
+      <button type="button" class="quarto-btn-toggle btn" data-bs-toggle="collapse" role="button" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
+        <i class="bi bi-layout-text-sidebar-reverse"></i>
+      </button>
+        <nav class="quarto-page-breadcrumbs" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="./4rasterfiles.html">4. Rasters</a></li></ol></nav>
+        <a class="flex-grow-1" role="navigation" data-bs-toggle="collapse" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">      
+        </a>
+    </div>
+  </nav>
+</header>
+<!-- content -->
+<div id="quarto-content" class="quarto-container page-columns page-rows-contents page-layout-article">
+<!-- sidebar -->
+  <nav id="quarto-sidebar" class="sidebar collapse collapse-horizontal quarto-sidebar-collapse-item sidebar-navigation docked overflow-auto">
+    <div class="pt-lg-2 mt-2 text-left sidebar-header">
+    <div class="sidebar-title mb-0 py-0">
+      <a href="./">Geospatial small area estimation in R</a> 
+    </div>
+      </div>
+    <div class="sidebar-menu-container"> 
+    <ul class="list-unstyled mt-1">
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./index.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">1. Introduction</span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./2rsetup.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">2. R setup</span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./3vectorfiles.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">3. Vector files (shapefiles)</span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./4rasterfiles.html" class="sidebar-item-text sidebar-link active">
+ <span class="menu-text">4. Rasters</span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./5surveydata.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">5. Survey data</span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./6features.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">6. Creating and selecting features</span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./7estimation.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">7. Estimating the model</span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./8mapping.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">8. Mapping the results</span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./9conclusion.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">9. Conclusion</span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./appendices.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Appendix: Additional resources</span></a>
+  </div>
+</li>
+    </ul>
+    </div>
+</nav>
+<div id="quarto-sidebar-glass" class="quarto-sidebar-collapse-item" data-bs-toggle="collapse" data-bs-target=".quarto-sidebar-collapse-item"></div>
+<!-- margin-sidebar -->
+    <div id="quarto-margin-sidebar" class="sidebar margin-sidebar">
+        <nav id="TOC" role="doc-toc" class="toc-active">
+    <h2 id="toc-title">On this page</h2>
+   
+  <ul class="collapse">
+  <li><a href="#sec-rasters" id="toc-sec-rasters" class="nav-link active" data-scroll-target="#sec-rasters"><span class="header-section-number">4</span> Rasters</a>
+  <ul class="collapse">
+  <li><a href="#sec-readrasters" id="toc-sec-readrasters" class="nav-link" data-scroll-target="#sec-readrasters"><span class="header-section-number">4.1</span> Reading and plotting rasters</a></li>
+  <li><a href="#sec-extractrasters" id="toc-sec-extractrasters" class="nav-link" data-scroll-target="#sec-extractrasters"><span class="header-section-number">4.2</span> Extracting raster data into shapefiles</a></li>
+  <li><a href="#sec-coordinates" id="toc-sec-coordinates" class="nav-link" data-scroll-target="#sec-coordinates"><span class="header-section-number">4.3</span> Creating a shapefile from points</a></li>
+  <li><a href="#creating-a-grid" id="toc-creating-a-grid" class="nav-link" data-scroll-target="#creating-a-grid"><span class="header-section-number">4.4</span> Creating a grid</a></li>
+  <li><a href="#sec-getrasters" id="toc-sec-getrasters" class="nav-link" data-scroll-target="#sec-getrasters"><span class="header-section-number">4.5</span> Where can we get rasters?</a></li>
+  <li><a href="#worldpop" id="toc-worldpop" class="nav-link" data-scroll-target="#worldpop"><span class="header-section-number">4.6</span> Worldpop</a></li>
+  <li><a href="#mosaiks" id="toc-mosaiks" class="nav-link" data-scroll-target="#mosaiks"><span class="header-section-number">4.7</span> Mosaiks</a></li>
+  <li><a href="#sec-eeapi" id="toc-sec-eeapi" class="nav-link" data-scroll-target="#sec-eeapi"><span class="header-section-number">4.8</span> Using Python to access Google Earth Engine</a></li>
+  <li><a href="#sec-geolinkapi" id="toc-sec-geolinkapi" class="nav-link" data-scroll-target="#sec-geolinkapi"><span class="header-section-number">4.9</span> Geolink</a></li>
+  <li><a href="#finishing-up" id="toc-finishing-up" class="nav-link" data-scroll-target="#finishing-up"><span class="header-section-number">4.10</span> Finishing up</a></li>
+  <li><a href="#references" id="toc-references" class="nav-link" data-scroll-target="#references"><span class="header-section-number">4.11</span> References</a></li>
+  </ul></li>
+  </ul>
+</nav>
+    </div>
+<!-- main -->
+<main class="content" id="quarto-document-content">
+
+<header id="title-block-header" class="quarto-title-block default">
+<div class="quarto-title">
+<h1 class="title">Rasters</h1>
+</div>
+
+
+
+<div class="quarto-title-meta">
+
+    
+  
+    
+  </div>
+  
+
+
+</header>
+
+
+<section id="sec-rasters" class="level1" data-number="4">
+<h1 data-number="4"><span class="header-section-number">4</span> Rasters</h1>
+<p>We generally use shapefiles to outline different types of administrative areas or geographic features. However, shapefiles are rarely used to store data. The reason is simple: memory. Shapefiles are simply not efficient for storing large amounts of data, at least relative to rasters. Nonetheless, it is common to use shapefiles to <em>extract</em> data in order to estimate SAE models. For example, in later sections, we will be estimating an SAE model at the EA (admin 4) level in Malawi. This means that we need to aggregate any predictors to the EA level, which we will do using an EA-level shapefile and rasters.</p>
+<div class="cell" data-layout-align="center">
+<div class="cell-output-display">
+<div id="fig-rast" class="quarto-float quarto-figure quarto-figure-center anchored" data-fig-align="center">
+<figure class="quarto-float quarto-float-fig figure">
+<figcaption class="quarto-float-caption-top quarto-float-caption quarto-float-fig" id="fig-rast-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+Figure&nbsp;1: An example raster
+</figcaption>
+<div aria-describedby="fig-rast-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+<img src="4rasterfiles_files/figure-html/fig-rast-1.png" class="img-fluid quarto-figure quarto-figure-center figure-img" width="672">
+</div>
+</figure>
+</div>
+</div>
+</div>
+<p>Rasters are a different type of geospatial data. Instead of outlining polygons with points, rasters are composed of a grid – each cell of which has a value (or values) – such as the grid in <a href="#fig-rast" class="quarto-xref">Figure&nbsp;1</a>. If <a href="#fig-rast" class="quarto-xref">Figure&nbsp;1</a> were a shapefile, each individual cell would require five vertices.<a href="#fn1" class="footnote-ref" id="fnref1" role="doc-noteref"><sup>1</sup></a> But a raster is different. Since each grid cell is the exact same dimensions, we only need to know two things in order to locate <em>all</em> of the grid cells in space: A single point at the corner (or the centroid) of the grid, and the dimensions of the grid cells! This makes storing data in rasters much more efficient than storing data in shapefiles. The trade-off, of course, is that each cell is an identical shape, while shapefile features can be any shape.</p>
+<p>While we will be dealing with rasters in the context of geospatial data, raster data simply refers to the format in which it is stored. Many common image file formats are also rasters. For example, <code>.png</code> and <code>.jpg</code> files are both rasters – the images are composed of many individual grid cells – though without the geospatial component that we will be using.</p>
+<section id="sec-readrasters" class="level2" data-number="4.1">
+<h2 data-number="4.1" class="anchored" data-anchor-id="sec-readrasters"><span class="header-section-number">4.1</span> Reading and plotting rasters</h2>
+<p>As with shapefiles, we will be reading rasters using the <code>terra</code> package. In the data folder on the GitHub repository, you will find a raster file called <code>ndviexample.tif</code>. This raster file contains a vegetation index, NDVI, for April of 2019. To read this raster file, we can use the following code:</p>
+<div class="cell" data-layout-align="center">
+<div class="sourceCode cell-code" id="cb1"><pre class="sourceCode numberSource r number-lines code-with-copy"><code class="sourceCode r"><span id="cb1-1"><a href="#cb1-1"></a>ndvi <span class="ot">&lt;-</span> <span class="fu">rast</span>(<span class="st">"data/ndviexample.tif"</span>)</span>
+<span id="cb1-2"><a href="#cb1-2"></a><span class="co"># check</span></span>
+<span id="cb1-3"><a href="#cb1-3"></a>ndvi</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>class       : SpatRaster 
+dimensions  : 377, 203, 1  (nrow, ncol, nlyr)
+resolution  : 0.008983153, 0.008983153  (x, y)
+extent      : 32.94122, 34.7648, -12.74709, -9.360445  (xmin, xmax, ymin, ymax)
+coord. ref. : lon/lat WGS 84 (EPSG:4326) 
+source      : ndviexample.tif 
+name        : NDVI </code></pre>
+</div>
+</div>
+<p>As before, we can print the object (<code>ndvi</code>) and inspect some of the summary information. Much of the information is similar to what we saw with the shapefile, but there are some differences.</p>
+<ul>
+<li><code>class: SpatRaster</code>: This simply means that we loaded the raster file using <code>terra</code>.</li>
+<li><code>dimensions  : 377, 203, 1  (nrow, ncol, nlyr)</code>: The raster has 327 rows, 203 columns, and one layer. The “layer” refers to the number of bands – or variables – in the raster. In this example, the raster contains just one piece of information: NDVI.</li>
+<li><code>resolution  : 0.008983153, 0.008983153  (x, y)</code>: The resolution is the size of each grid cell. In this case, the CRS is longitude/latitude, meaning the resolution is in <em>degrees</em>, not meters.</li>
+<li><code>name: NDVI</code>: The names are the names of the layers/bands/variables. Again, there is only one variable in this raster, and its name is <code>NDVI</code>.</li>
+</ul>
+<p>To plot the raster, we will use <code>ggplot</code> and <code>geom_spatraster</code>. This function will automatically plot the raster, with a color scale that goes from the minimum to the maximum value in the raster. In this case, our raster has only a single variable, so we do not need to worry ourselves with other specifics for now. We can plot the raster with:</p>
+<div class="cell" data-layout-align="center">
+<div class="sourceCode cell-code" id="cb3"><pre class="sourceCode numberSource r number-lines code-with-copy"><code class="sourceCode r"><span id="cb3-1"><a href="#cb3-1"></a><span class="co"># Figure A</span></span>
+<span id="cb3-2"><a href="#cb3-2"></a><span class="fu">ggplot</span>() <span class="sc">+</span></span>
+<span id="cb3-3"><a href="#cb3-3"></a>  <span class="fu">geom_spatraster</span>(<span class="at">data =</span> ndvi)</span>
+<span id="cb3-4"><a href="#cb3-4"></a><span class="co"># Figure B</span></span>
+<span id="cb3-5"><a href="#cb3-5"></a><span class="fu">ggplot</span>() <span class="sc">+</span></span>
+<span id="cb3-6"><a href="#cb3-6"></a>  <span class="fu">geom_spatraster</span>(<span class="at">data =</span> ndvi) <span class="sc">+</span></span>
+<span id="cb3-7"><a href="#cb3-7"></a>  <span class="fu">scale_fill_distiller</span>(<span class="at">palette =</span> <span class="st">"GnBu"</span>) <span class="sc">+</span></span>
+<span id="cb3-8"><a href="#cb3-8"></a>  <span class="fu">theme_bw</span>()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<div class="cell" data-layout-align="center">
+<div class="cell-output-display">
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<figcaption>NDVI raster for Northern Malawi</figcaption>
+<p><img src="4rasterfiles_files/figure-html/fig_rastpop-1.png" class="img-fluid figure-img" width="672"></p>
+</figure>
+</div>
+</div>
+</div>
+<p>Figure A (left panel) is the most basic raster plot. It includes a blue color scale, with lighter-shade blues indicating higher NDVI values. However, the title of the legend is simply “value.”</p>
+<p>Figure B (right panel) includes several differences in order to highlight some additional <code>ggplot</code> syntax and improve the presentation. First, we change the color scale using <code>scale_fill_distiller()</code>. The <code>palette</code> argument specifies the color palette; in this case, we use the “GnBu” (green to blue) palette.<a href="#fn2" class="footnote-ref" id="fnref2" role="doc-noteref"><sup>2</sup></a> Second, we add a title to the legend, “NDVI,” to make it clear that the values refer to NDVI.<a href="#fn3" class="footnote-ref" id="fnref3" role="doc-noteref"><sup>3</sup></a> Finally, we again change the base theme to <code>theme_bw()</code>.</p>
+</section>
+<section id="sec-extractrasters" class="level2" data-number="4.2">
+<h2 data-number="4.2" class="anchored" data-anchor-id="sec-extractrasters"><span class="header-section-number">4.2</span> Extracting raster data into shapefiles</h2>
+<p>It is worth taking a minute to remember where we want to end up. Our final goal is to estimate a small area model using geospatial data. To do so, we will need to <em>extract</em> the raster data into a shapefile; that shapefile could be admin 4 polygons (EAs in the case of Malawi), grid polygons, or household points. In other words, we want the predictors from rasters – e.g.&nbsp;NDVI or nightlights – aggregated up to the admin 4 level. In this section, we will show how to extract raster data into a shapefile.</p>
+<p>If we want to estimate a model at the admin 4 level, we will extract the raster data into the admin 4 shapefile. This “extraction” process will overlay the raster with the shapefile and find the different “tiles” of the raster that overlap each polygon in the shapefile in order to aggregate them with some chosen function.<a href="#fn4" class="footnote-ref" id="fnref4" role="doc-noteref"><sup>4</sup></a> We can do this using the <code>extract()</code> function from the <code>terra</code> package. The <code>extract()</code> function will take the raster data and extract it into the shapefile. Let’s first load the admin 4 shapefile into R, using <code>vect</code> from the <code>terra</code> package:<a href="#fn5" class="footnote-ref" id="fnref5" role="doc-noteref"><sup>5</sup></a></p>
+<div class="cell" data-layout-align="center">
+<div class="sourceCode cell-code" id="cb4"><pre class="sourceCode numberSource r number-lines code-with-copy"><code class="sourceCode r"><span id="cb4-1"><a href="#cb4-1"></a><span class="co"># load admin4</span></span>
+<span id="cb4-2"><a href="#cb4-2"></a>mw4 <span class="ot">&lt;-</span> <span class="fu">vect</span>(<span class="st">"data/mw4.shp"</span>)</span>
+<span id="cb4-3"><a href="#cb4-3"></a><span class="co"># print it</span></span>
+<span id="cb4-4"><a href="#cb4-4"></a>mw4</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code> class       : SpatVector 
+ geometry    : polygons 
+ dimensions  : 3212, 3  (geometries, attributes)
+ extent      : 32.94242, 34.75888, -12.74058, -9.367346  (xmin, xmax, ymin, ymax)
+ source      : mw4.shp
+ coord. ref. : lon/lat WGS 84 (EPSG:4326) 
+ names       : DIST_CODE  EA_CODE TA_CODE
+ type        :     &lt;chr&gt;    &lt;chr&gt;   &lt;chr&gt;
+ values      :       105 10507801   10507
+                     105 10507072   10507
+                     105 10507010   10507</code></pre>
+</div>
+</div>
+<p>Here we see the same kind of output as when we looked at the admin 3 shape file, but with some different values since the admin 4 shapefile has different attributes (and more features). We can see the difference visually in <a href="#fig-adm" class="quarto-xref">Figure&nbsp;2</a>.</p>
+<p>The left figure shows the outline of admin 3 areas, while the right figure shows the outline of the admin 4 areas. The admin 4 areas are smaller and more numerous than the admin 3 areas (3,212 features vs.&nbsp;76 features). Though they cover the same geographic area, the admin 3 shapefile takes up 4.9 MB of memory, while the admin 4 shapefile takes up 40.3 MB. We mention this because larger shapefiles can sometimes lead to memory issues on some computers, especially when extracting data from large rasters.</p>
+<div class="cell" data-layout-align="center">
+<div class="cell-output-display">
+<div id="fig-adm" class="quarto-float quarto-figure quarto-figure-center anchored" data-fig-align="center">
+<figure class="quarto-float quarto-float-fig figure">
+<figcaption class="quarto-float-caption-top quarto-float-caption quarto-float-fig" id="fig-adm-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+Figure&nbsp;2: Comparing Admin Levels in Northern Malawi
+</figcaption>
+<div aria-describedby="fig-adm-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+<img src="4rasterfiles_files/figure-html/fig-adm-1.png" class="img-fluid quarto-figure quarto-figure-center figure-img" width="672">
+</div>
+</figure>
+</div>
+</div>
+</div>
+<p>We want to extract the NDVI data into the admin 4 shapefile, such that each feature (geographic area) in the admin 4 shapefile has the average NDVI value for that feature. We can do this using the <code>extract()</code> function from the <code>terra</code> package, which will create a data frame with the average NDVI for each feature. The code is:</p>
+<div class="cell" data-layout-align="center">
+<div class="sourceCode cell-code" id="cb6"><pre class="sourceCode numberSource r number-lines code-with-copy"><code class="sourceCode r"><span id="cb6-1"><a href="#cb6-1"></a><span class="co"># note the order and that we want the MEAN:</span></span>
+<span id="cb6-2"><a href="#cb6-2"></a>extractedndvi <span class="ot">&lt;-</span> <span class="fu">extract</span>(ndvi, mw4, <span class="at">fun =</span> <span class="st">"mean"</span>)</span>
+<span id="cb6-3"><a href="#cb6-3"></a><span class="fu">head</span>(extractedndvi)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>  ID     NDVI
+1  1 6225.000
+2  2 6624.000
+3  3 6112.167
+4  4 6883.500
+5  5 6684.200
+6  6 6252.667</code></pre>
+</div>
+</div>
+<p>The <code>extract()</code> function takes three arguments: the raster data, the shapefile, and the function to apply. In this case, we want the mean NDVI value for each feature, so we use <code>fun = "mean"</code>. The output is a data frame with two columns, but the important point is that the order of rows is identical to the order of rows from the shapefile.<a href="#fn6" class="footnote-ref" id="fnref6" role="doc-noteref"><sup>6</sup></a> This means that we can simply add the NDVI values to the shapefile as a new column:</p>
+<div class="cell" data-layout-align="center">
+<div class="sourceCode cell-code" id="cb8"><pre class="sourceCode numberSource r number-lines code-with-copy"><code class="sourceCode r"><span id="cb8-1"><a href="#cb8-1"></a>mw4<span class="sc">$</span>ndvi <span class="ot">&lt;-</span> extractedndvi<span class="sc">$</span>NDVI</span>
+<span id="cb8-2"><a href="#cb8-2"></a><span class="fu">head</span>(mw4)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>  DIST_CODE  EA_CODE TA_CODE     ndvi
+1       105 10507801   10507 6225.000
+2       105 10507072   10507 6624.000
+3       105 10507010   10507 6112.167
+4       105 10507001   10507 6883.500
+5       105 10507009   10507 6684.200
+6       105 10507033   10507 6252.667</code></pre>
+</div>
+</div>
+<p>This code takes the column <code>NDVI</code> from the <code>extractedndvi</code> data and adds it to the <code>mw4</code> shapefile as a new column, <code>ndvi</code>. We can see the results when looking at the first few rows of <code>mw4</code>.</p>
+<p>With this data, we can now plot the admin 4 shapefile, explicitly telling <code>ggplot</code> to color the features based on their <code>ndvi</code> value:</p>
+<div class="cell" data-layout-align="center">
+<div class="sourceCode cell-code" id="cb10"><pre class="sourceCode numberSource r number-lines code-with-copy"><code class="sourceCode r"><span id="cb10-1"><a href="#cb10-1"></a><span class="co"># Figure A</span></span>
+<span id="cb10-2"><a href="#cb10-2"></a><span class="fu">ggplot</span>() <span class="sc">+</span></span>
+<span id="cb10-3"><a href="#cb10-3"></a>  <span class="fu">geom_spatvector</span>(<span class="at">data =</span> mw4, <span class="fu">aes</span>(<span class="at">fill =</span> ndvi))</span>
+<span id="cb10-4"><a href="#cb10-4"></a><span class="co"># Figure B</span></span>
+<span id="cb10-5"><a href="#cb10-5"></a><span class="fu">ggplot</span>() <span class="sc">+</span></span>
+<span id="cb10-6"><a href="#cb10-6"></a>  <span class="fu">geom_spatvector</span>(<span class="at">data =</span> mw4, <span class="fu">aes</span>(<span class="at">fill =</span> ndvi), <span class="at">color =</span> <span class="cn">NA</span>) <span class="sc">+</span></span>
+<span id="cb10-7"><a href="#cb10-7"></a>  <span class="fu">scale_fill_distiller</span>(<span class="st">"NDVI"</span>, <span class="at">palette =</span> <span class="st">"GnBu"</span>) <span class="sc">+</span></span>
+<span id="cb10-8"><a href="#cb10-8"></a>  <span class="fu">theme_bw</span>(<span class="at">base_size =</span> <span class="dv">8</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<div class="cell" data-layout-align="center">
+<div class="cell-output-display">
+<div id="fig-admndvi" class="quarto-float quarto-figure quarto-figure-center anchored" data-fig-align="center">
+<figure class="quarto-float quarto-float-fig figure">
+<figcaption class="quarto-float-caption-top quarto-float-caption quarto-float-fig" id="fig-admndvi-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+Figure&nbsp;3: Admin 4 Shapefile with NDVI Values
+</figcaption>
+<div aria-describedby="fig-admndvi-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+<img src="4rasterfiles_files/figure-html/fig-admndvi-1.png" class="img-fluid quarto-figure quarto-figure-center figure-img" width="672">
+</div>
+</figure>
+</div>
+</div>
+</div>
+<p>Figure A (left panel) of <a href="#fig-admndvi" class="quarto-xref">Figure&nbsp;3</a> shows the admin 4 shapefile with the NDVI values. The color scale is the defaul. Figure B (right panel) shows the same shapefile, but with several changes. First, since our goal is to present the <em>fill</em> color for each admin 4, we set the color of the outline of each feature to be <code>NA</code> (i.e.&nbsp;transparent). Figure A is quite difficult to read due to the size of the features relative to the size of the boundary lines. Second, we use <code>scale_fill_distiller</code> to change the color scale, again using the green-to-blue scale from before. Finally, we change the base theme to <code>theme_bw(base_size = 8)</code>. In our opinion, these changes result in a much more visually appealing figure.</p>
+</section>
+<section id="sec-coordinates" class="level2" data-number="4.3">
+<h2 data-number="4.3" class="anchored" data-anchor-id="sec-coordinates"><span class="header-section-number">4.3</span> Creating a shapefile from points</h2>
+<p>In the <code>data</code> folder, we have created a folder called <code>ihshousehold</code>, which contains two separate household-level datasets from the Fifth Integrated Household Survey (IHS5). The first contains consumption aggregates (i.e.&nbsp;expenditures, as well as a poverty measure), while the second contains household geovariables, including geocoordinates.<a href="#fn7" class="footnote-ref" id="fnref7" role="doc-noteref"><sup>7</sup></a> For now, we focus on the latter.</p>
+<p>To ensure confidentiality, GPS coordinates in publically available datasets are generally never exact; instead, they are <em>jittered</em> by a random amount in order to preserve the anonymity of respondents. In other words, the GPS coordinates are not the exact location of the household, but rather a randomly selected point within a certain distance of the true location. Additionally, in this dataset, the coordinates are for the enumeration area (the primary sampling unit) of the survey, which is why multiple households have the same coordinates.</p>
+<p>The household datasets have the .dta extension, which means they are Stata files. We can read these into <code>R</code> using the package <code>haven</code> and the function <code>read_dta()</code>, as follows:</p>
+<div class="cell" data-layout-align="center">
+<div class="sourceCode cell-code" id="cb11"><pre class="sourceCode numberSource r number-lines code-with-copy"><code class="sourceCode r"><span id="cb11-1"><a href="#cb11-1"></a><span class="co"># read in dta file</span></span>
+<span id="cb11-2"><a href="#cb11-2"></a>df <span class="ot">&lt;-</span> <span class="fu">read_dta</span>(<span class="st">"data/ihshousehold/householdgeovariables_ihs5.dta"</span>)</span>
+<span id="cb11-3"><a href="#cb11-3"></a><span class="fu">colnames</span>(df)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code> [1] "case_id"         "ea_id"           "dist_road"       "dist_agmrkt"    
+ [5] "dist_auction"    "dist_admarc"     "dist_border"     "dist_popcenter" 
+ [9] "dist_boma"       "ssa_aez09"       "twi_mwi"         "sq1"            
+[13] "sq2"             "sq3"             "sq4"             "sq5"            
+[17] "sq6"             "sq7"             "af_bio_1_x"      "af_bio_8_x"     
+[21] "af_bio_12_x"     "af_bio_13_x"     "af_bio_16_x"     "afmnslp_pct"    
+[25] "srtm_1k"         "popdensity"      "cropshare"       "h2018_tot"      
+[29] "h2018_wetQstart" "h2018_wetQ"      "h2019_tot"       "h2019_wetQstart"
+[33] "h2019_wetQ"      "anntot_avg"      "wetQ_avgstart"   "wetQ_avg"       
+[37] "h2018_ndvi_avg"  "h2018_ndvi_max"  "h2019_ndvi_avg"  "h2019_ndvi_max" 
+[41] "ndvi_avg"        "ndvi_max"        "ea_lat_mod"      "ea_lon_mod"     </code></pre>
+</div>
+</div>
+<p>The new <code>df</code> object is a household-level dataset with many variables (44, to be exact). The above code uses <code>colnames(df)</code> to display the names of the columns (variables), in order to identify which columns contain the GPS coordinates. In this case, the relevant columns for longitude and latitude are called <code>ea_lon_mod</code> and <code>ea_lat_mod</code>, respectively, where the “ea” indicates that they are for the enumeration area – not the household – and the “mod” indicates that they are modified (jittered). The other important column is the household identifier, which in this case is <code>case_id</code>. As we really only need these three variables, we can use <code>tidyverse</code> to select only those columns:</p>
+<div class="cell" data-layout-align="center">
+<div class="sourceCode cell-code" id="cb13"><pre class="sourceCode numberSource r number-lines code-with-copy"><code class="sourceCode r"><span id="cb13-1"><a href="#cb13-1"></a><span class="co"># Select just the columns we want</span></span>
+<span id="cb13-2"><a href="#cb13-2"></a>df <span class="ot">&lt;-</span> df <span class="sc">|&gt;</span></span>
+<span id="cb13-3"><a href="#cb13-3"></a>  <span class="fu">select</span>(case_id, ea_lon_mod, ea_lat_mod)</span>
+<span id="cb13-4"><a href="#cb13-4"></a><span class="co"># simple summary statistics</span></span>
+<span id="cb13-5"><a href="#cb13-5"></a><span class="fu">summary</span>(df)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>   case_id            ea_lon_mod      ea_lat_mod     
+ Length:2176        Min.   : 0.00   Min.   :-12.610  
+ Class :character   1st Qu.:33.50   1st Qu.:-11.482  
+ Mode  :character   Median :33.92   Median :-10.978  
+                    Mean   :32.09   Mean   :-10.345  
+                    3rd Qu.:34.03   3rd Qu.: -9.909  
+                    Max.   :34.72   Max.   :  0.000  
+                    NA's   :1       NA's   :1        </code></pre>
+</div>
+</div>
+<p>We have used the <code>select()</code> function from the <code>tidyverse</code> package to select only the columns we want, using a pipe operator (<code>|&gt;</code>) to chain things together. One way to read this code is “take <code>df</code> <em>and then</em> select these columns. Replace <code>df</code> with the new object.”</p>
+<p>The <code>summary()</code> function gives us some basic summary statistics for the three variables. <code>case_id</code> is a character (i.e.&nbsp;a string), while <code>ea_lon_mod</code> and <code>ea_lat_mod</code> are numeric. However, there appears to be some strange minimum/maximum values for the two variables. We can turn this data into a spatial object using <code>terra</code> and then plot the points to look at them more closely.</p>
+<div class="cell" data-layout-align="center">
+<div class="sourceCode cell-code" id="cb15"><pre class="sourceCode numberSource r number-lines code-with-copy"><code class="sourceCode r"><span id="cb15-1"><a href="#cb15-1"></a><span class="co"># crs = "EPSG:4326" tells terra the points are longitude/latitude</span></span>
+<span id="cb15-2"><a href="#cb15-2"></a>df <span class="ot">&lt;-</span> <span class="fu">vect</span>(df, <span class="at">geom =</span> <span class="fu">c</span>(<span class="st">"ea_lon_mod"</span>, <span class="st">"ea_lat_mod"</span>), <span class="at">crs =</span> <span class="st">"EPSG:4326"</span>)</span>
+<span id="cb15-3"><a href="#cb15-3"></a>df</span>
+<span id="cb15-4"><a href="#cb15-4"></a><span class="fu">ggplot</span>() <span class="sc">+</span> </span>
+<span id="cb15-5"><a href="#cb15-5"></a>  <span class="fu">geom_spatvector</span>(<span class="at">data =</span> df) <span class="sc">+</span></span>
+<span id="cb15-6"><a href="#cb15-6"></a>  <span class="fu">theme_bw</span>(<span class="at">base_size =</span> <span class="dv">8</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<div class="cell" data-layout-align="center">
+<div class="cell-output cell-output-stdout">
+<pre><code> class       : SpatVector 
+ geometry    : points 
+ dimensions  : 2176, 1  (geometries, attributes)
+ extent      : 0, 34.71688, -12.60982, 0  (xmin, xmax, ymin, ymax)
+ coord. ref. : lon/lat WGS 84 (EPSG:4326) 
+ names       :      case_id
+ type        :        &lt;chr&gt;
+ values      : 101011000014
+               101011000023
+               101011000040</code></pre>
+</div>
+<div class="cell-output-display">
+<div id="fig-points" class="quarto-float quarto-figure quarto-figure-center anchored" data-fig-align="center">
+<figure class="quarto-float quarto-float-fig figure">
+<figcaption class="quarto-float-caption-top quarto-float-caption quarto-float-fig" id="fig-points-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+Figure&nbsp;4: Household Locations in Northern Malawi
+</figcaption>
+<div aria-describedby="fig-points-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+<img src="4rasterfiles_files/figure-html/fig-points-1.png" class="img-fluid quarto-figure quarto-figure-center figure-img" width="672">
+</div>
+</figure>
+</div>
+</div>
+</div>
+<p><a href="#fig-points" class="quarto-xref">Figure&nbsp;4</a> clearly shows that there are some incorrect values in the GPS data! There are some households that have coordinates of (0, 0), which should not be the case since these households clearly fall outside of (Northern) Malawi. For now, we are simply going to remove these from the data:<a href="#fn8" class="footnote-ref" id="fnref8" role="doc-noteref"><sup>8</sup></a></p>
+<div class="cell" data-layout-align="center">
+<div class="sourceCode cell-code" id="cb17"><pre class="sourceCode numberSource r number-lines code-with-copy"><code class="sourceCode r"><span id="cb17-1"><a href="#cb17-1"></a><span class="co"># geom(df) returns coordinates</span></span>
+<span id="cb17-2"><a href="#cb17-2"></a><span class="co"># the [,"x"] says "give me the x coordinates"</span></span>
+<span id="cb17-3"><a href="#cb17-3"></a><span class="co"># we then check if they are not equal to 0, and only keep those that are</span></span>
+<span id="cb17-4"><a href="#cb17-4"></a>df <span class="ot">&lt;-</span> df[<span class="fu">geom</span>(df)[,<span class="st">"x"</span>]<span class="sc">!=</span><span class="dv">0</span>,]</span>
+<span id="cb17-5"><a href="#cb17-5"></a><span class="co"># now plot it</span></span>
+<span id="cb17-6"><a href="#cb17-6"></a><span class="fu">ggplot</span>() <span class="sc">+</span> </span>
+<span id="cb17-7"><a href="#cb17-7"></a>  <span class="fu">geom_spatvector</span>(<span class="at">data =</span> df) <span class="sc">+</span></span>
+<span id="cb17-8"><a href="#cb17-8"></a>  <span class="fu">theme_bw</span>()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<div class="cell" data-layout-align="center" data-crop="true">
+<div class="cell-output-display">
+<div id="fig-pointsclean" class="quarto-float quarto-figure quarto-figure-center anchored" data-fig-align="center">
+<figure class="quarto-float quarto-float-fig figure">
+<figcaption class="quarto-float-caption-top quarto-float-caption quarto-float-fig" id="fig-pointsclean-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+Figure&nbsp;5: Cleaned Locations in Northern Malawi
+</figcaption>
+<div aria-describedby="fig-pointsclean-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+<img src="4rasterfiles_files/figure-html/fig-pointsclean-1.png" class="img-fluid quarto-figure quarto-figure-center figure-img" width="288">
+</div>
+</figure>
+</div>
+</div>
+</div>
+<p><a href="#fig-pointsclean" class="quarto-xref">Figure&nbsp;5</a> shows that we have removed those households that had coordinates of (0, 0). We can now use these points to extract information from other shapefiles or other rasters. For example, we might want to get the admin identifiers from the <code>mw4</code> shapefile into the points or get NDVI values at the location of households (or near them).</p>
+<p>We can extract information from another <em>shapefile</em> by doing a spatial join using <code>terra</code>. There are multiple ways to do this, but one is to use the function <code>extract()</code>, as follows, noting that the order is polygons first, points second:</p>
+<div class="cell" data-layout-align="center">
+<div class="sourceCode cell-code" id="cb18"><pre class="sourceCode numberSource r number-lines code-with-copy"><code class="sourceCode r"><span id="cb18-1"><a href="#cb18-1"></a>dfmw4 <span class="ot">&lt;-</span> <span class="fu">extract</span>(mw4, df)</span>
+<span id="cb18-2"><a href="#cb18-2"></a><span class="fu">dim</span>(dfmw4)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>[1] 2063    5</code></pre>
+</div>
+<div class="sourceCode cell-code" id="cb20"><pre class="sourceCode numberSource r number-lines code-with-copy"><code class="sourceCode r"><span id="cb20-1"><a href="#cb20-1"></a><span class="fu">dim</span>(df)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>[1] 2063    1</code></pre>
+</div>
+</div>
+<p>Looking at the dimensions (using <code>dim()</code>), we see that the new object has the same number of rows as the original <code>df</code> object. However, it has more columns since it also has information from the <code>mw4</code> shapefile. A key clarification is that the new object, <code>dfmw4</code>, is a data frame, not a spatial object. In other words, it does not contain any information relating to the spatial coordinates from the original shapefile or raster, but instead is what you would get if you, for example, loaded a .csv file into <code>R</code>. However, the rows are in the same order as the original <code>df</code> object, so we can simply add the new columns to the original <code>df</code> object:</p>
+<div class="cell" data-layout-align="center">
+<div class="sourceCode cell-code" id="cb22"><pre class="sourceCode numberSource r number-lines code-with-copy"><code class="sourceCode r"><span id="cb22-1"><a href="#cb22-1"></a><span class="co"># cbind, excluding the FIRST column from dfmw4</span></span>
+<span id="cb22-2"><a href="#cb22-2"></a><span class="co"># the first column is called "id.y", which we do not need</span></span>
+<span id="cb22-3"><a href="#cb22-3"></a>df <span class="ot">&lt;-</span> <span class="fu">cbind</span>(df, dfmw4[,<span class="sc">-</span><span class="dv">1</span>])</span>
+<span id="cb22-4"><a href="#cb22-4"></a><span class="fu">head</span>(df)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>       case_id DIST_CODE  EA_CODE TA_CODE   ndvi
+1 101011000014       101 10101006   10101 6098.6
+2 101011000023       101 10101006   10101 6098.6
+3 101011000040       101 10101006   10101 6098.6
+4 101011000071       101 10101006   10101 6098.6
+5 101011000095       101 10101006   10101 6098.6
+6 101011000115       101 10101006   10101 6098.6</code></pre>
+</div>
+</div>
+<p>Since we already extracted NDVI into the <code>mw4</code> shapefile, it is now also in the new <code>df</code> object. However, we can also extract raster values directly to the points, again using the <code>extract()</code> function and the same steps as above, creating a new column (or, in this case, replacing an existing column) called <code>ndvi</code>:</p>
+<div class="cell" data-layout-align="center">
+<div class="sourceCode cell-code" id="cb24"><pre class="sourceCode numberSource r number-lines code-with-copy"><code class="sourceCode r"><span id="cb24-1"><a href="#cb24-1"></a>dfextracted <span class="ot">&lt;-</span> <span class="fu">extract</span>(ndvi, df)</span>
+<span id="cb24-2"><a href="#cb24-2"></a>df<span class="sc">$</span>ndvi <span class="ot">&lt;-</span> dfextracted<span class="sc">$</span>NDVI</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<p>Note that these new values will be different from the values we extracted into the <code>mw4</code> shapefile. The reason is simple: the <code>mw4</code> shapefile consists of polygons and we took the <em>mean</em> NDVI value for each polygon. For the household points, however, we extract only the raster value for the raster grid in which the point falls. Another option is instead to take the value of the nearest four raster cells. We can do this using the <code>method = "bilinear"</code> option in <code>extract()</code>:</p>
+<div class="cell" data-layout-align="center">
+<div class="sourceCode cell-code" id="cb25"><pre class="sourceCode numberSource r number-lines code-with-copy"><code class="sourceCode r"><span id="cb25-1"><a href="#cb25-1"></a>dfextracted <span class="ot">&lt;-</span> <span class="fu">extract</span>(ndvi, df, <span class="at">method =</span> <span class="st">"bilinear"</span>)</span>
+<span id="cb25-2"><a href="#cb25-2"></a>df<span class="sc">$</span>ndvibilinear <span class="ot">&lt;-</span> dfextracted<span class="sc">$</span>NDVI</span>
+<span id="cb25-3"><a href="#cb25-3"></a><span class="fu">summary</span>(df[[<span class="fu">c</span>(<span class="st">"ndvi"</span>, <span class="st">"ndvibilinear"</span>)]])</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>      ndvi       ndvibilinear 
+ Min.   :4442   Min.   :4770  
+ 1st Qu.:6033   1st Qu.:6116  
+ Median :6769   Median :6752  
+ Mean   :6678   Mean   :6683  
+ 3rd Qu.:7233   3rd Qu.:7198  
+ Max.   :8781   Max.   :8538  </code></pre>
+</div>
+</div>
+<p>Using the <code>summary()</code> function, we see that the values are slightly different from the two methods. In particular, the “bilinear” option has less extreme values, since we are taking the mean of many raster cells instead of the value from one.</p>
+</section>
+<section id="creating-a-grid" class="level2" data-number="4.4">
+<h2 data-number="4.4" class="anchored" data-anchor-id="creating-a-grid"><span class="header-section-number">4.4</span> Creating a grid</h2>
+<p>As mentioned previously, an alternative to using administrative geographies for our small area estimation is to instead create a grid that covers Northern Malawi. Recall from above that a raster is just a grid, where each grid cell has the same size (resolution). We want to create a shapefile that is essentially a raster, so we will first create a raster, and then turn it into a shapefile!</p>
+<p>We can create a raster using the <code>rast()</code> function from <code>terra</code>, but we have to be careful about the resolution. Specifically, we are going to use a shapefile to define the area in which we want to create the grid. We have to specify the resolution in the same units (CRS) as the shapefile. If the shapefile is projected into, for example, UTM, then we need to specify the resolution in meters. On the other hand, if it is in longitude/latitude, we need to specify the resolution in <em>degrees</em>. Since our <code>mw4</code> shapefile is in longitude/latitude, we will use degrees to specify the size of the grid.<a href="#fn9" class="footnote-ref" id="fnref9" role="doc-noteref"><sup>9</sup></a></p>
+<div class="cell" data-layout-align="center">
+<div class="sourceCode cell-code" id="cb27"><pre class="sourceCode numberSource r number-lines code-with-copy"><code class="sourceCode r"><span id="cb27-1"><a href="#cb27-1"></a>grid <span class="ot">&lt;-</span> <span class="fu">rast</span>(mw4, <span class="at">res =</span> <span class="fl">0.075</span>)</span>
+<span id="cb27-2"><a href="#cb27-2"></a>grid <span class="ot">&lt;-</span> <span class="fu">as.polygons</span>(grid)</span>
+<span id="cb27-3"><a href="#cb27-3"></a>grid<span class="sc">$</span>id <span class="ot">&lt;-</span> <span class="dv">1</span><span class="sc">:</span><span class="fu">nrow</span>(grid)</span>
+<span id="cb27-4"><a href="#cb27-4"></a><span class="fu">ggplot</span>() <span class="sc">+</span> </span>
+<span id="cb27-5"><a href="#cb27-5"></a>  <span class="fu">geom_spatvector</span>(<span class="at">data =</span> grid) <span class="sc">+</span></span>
+<span id="cb27-6"><a href="#cb27-6"></a>  <span class="fu">theme_bw</span>(<span class="at">base_size =</span> <span class="dv">8</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output-display">
+<div id="fig-grid" class="quarto-float quarto-figure quarto-figure-center anchored" data-fig-align="center">
+<figure class="quarto-float quarto-float-fig figure">
+<figcaption class="quarto-float-caption-top quarto-float-caption quarto-float-fig" id="fig-grid-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+Figure&nbsp;6: A grid for Northern Malawi
+</figcaption>
+<div aria-describedby="fig-grid-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+<img src="4rasterfiles_files/figure-html/fig-grid-1.png" class="img-fluid quarto-figure quarto-figure-center figure-img" width="672">
+</div>
+</figure>
+</div>
+</div>
+</div>
+<p>What have we done? We have created a raster that covers the <em>extent</em> of <code>mw4</code>, each cell of which has a resolution of 0.075 degrees. We then turned this raster into a shapefile using <code>as.polygons()</code>. The <code>id</code> column is simply a unique identifier for each grid cell, which we will use in a minute.</p>
+<p><a href="#fig-grid" class="quarto-xref">Figure&nbsp;6</a> shows the resulting grid we have created, but we have a problem: since it covers the entire extent of <code>mw4</code>, there are many grid cells that fall outside of Northern Malawi. We want to remove all of these grid cells from the shapefile. We can do this by finding all grid cells that overlap with the <code>mw4</code> polygons/features and then filter the <code>grid</code> shapefile to keep only the grid cells that overlap with the <code>mw4</code> shapefile. This is where the <code>id</code> column comes into play:</p>
+<div class="cell" data-layout-align="center">
+<div class="sourceCode cell-code" id="cb28"><pre class="sourceCode numberSource r number-lines code-with-copy"><code class="sourceCode r"><span id="cb28-1"><a href="#cb28-1"></a><span class="co"># create intersection</span></span>
+<span id="cb28-2"><a href="#cb28-2"></a>intersection <span class="ot">&lt;-</span> <span class="fu">intersect</span>(grid, mw4)</span>
+<span id="cb28-3"><a href="#cb28-3"></a><span class="co"># now filter the grid using the id column</span></span>
+<span id="cb28-4"><a href="#cb28-4"></a><span class="co"># (only keep ids that are IN the id column of intersection)</span></span>
+<span id="cb28-5"><a href="#cb28-5"></a>grid <span class="ot">&lt;-</span> grid <span class="sc">|&gt;</span></span>
+<span id="cb28-6"><a href="#cb28-6"></a>  <span class="fu">filter</span>(id <span class="sc">%in%</span> intersection<span class="sc">$</span>id)</span>
+<span id="cb28-7"><a href="#cb28-7"></a><span class="fu">ggplot</span>() <span class="sc">+</span> </span>
+<span id="cb28-8"><a href="#cb28-8"></a>  <span class="fu">geom_spatvector</span>(<span class="at">data =</span> grid) <span class="sc">+</span></span>
+<span id="cb28-9"><a href="#cb28-9"></a>  <span class="fu">theme_bw</span>(<span class="at">base_size =</span> <span class="dv">8</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output-display">
+<div id="fig-gridnew" class="quarto-float quarto-figure quarto-figure-center anchored" data-fig-align="center">
+<figure class="quarto-float quarto-float-fig figure">
+<figcaption class="quarto-float-caption-top quarto-float-caption quarto-float-fig" id="fig-gridnew-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+Figure&nbsp;7: Filtered grid for Northern Malawi
+</figcaption>
+<div aria-describedby="fig-gridnew-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+<img src="4rasterfiles_files/figure-html/fig-gridnew-1.png" class="img-fluid quarto-figure quarto-figure-center figure-img" width="672">
+</div>
+</figure>
+</div>
+</div>
+</div>
+<p>The <code>intersect()</code> function creates a new shapefile that contains all intersections between the two shapefiles. It has the <code>id</code> column in it from <code>grid</code>, so we then filter the <code>grid</code> to keep only the grid cells whose <code>id</code> is in the <code>id</code> column of <code>intersection</code>. <a href="#fig-gridnew" class="quarto-xref">Figure&nbsp;7</a> shows the resulting grid, which now properly represents Northern Malawi. We could of course then use this grid shapefile to extract raster data, as we did before. We could also find which grid cell in which the households fall, again using the same syntax as above, when we placed the households within admin areas to extract the admin 4 identifier.</p>
+</section>
+<section id="sec-getrasters" class="level2" data-number="4.5">
+<h2 data-number="4.5" class="anchored" data-anchor-id="sec-getrasters"><span class="header-section-number">4.5</span> Where can we get rasters?</h2>
+<p>Rasters are relatively easy to find, but accessing them is not always straightforward. There are however, some websites that host simple raster files (e.g.&nbsp;.tif or .nc files) that can be easily downloaded. These include:</p>
+<ul>
+<li><a href="https://www.worldpop.org/">WorldPop</a>: WorldPop provides estimated population data in raster form for almost all countries across the globe. The data is available at different resolutions (e.g.&nbsp;100m and 1km) and for different years.</li>
+<li><a href="https://www.climatologylab.org/terraclimate.html">TerraClimate</a>: TerraClimate provides monthly estimates of different climate variables, including precipitation and temperature. You can download the data directly from the website, by going to <code>Download &gt; Individual Years</code>, selecting which year you want, and then clicking the link for <code>HTTPServer</code>.</li>
+<li><a href="https://eogdata.mines.edu/products/vnl/">Colorado School of Mines - Nighttime Lights</a>: Here you can find monthly and annual composites of nightlights, available for free download.</li>
+<li><a href="https://www.mosaiks.org/">Mosaiks</a>: Mosaiks provides access to features (rasters) which were produced using machine learning and satellite imagery (<a href="#2">Rolf et al., 2021</a>). For details, it is important to refer to the website and the associated paper, but from experience, these features can often predict many outcomes quite well. The entire dataset is very large, so it is recommended that you download only the spatial areas you need.</li>
+<li><a href="https://sites.research.google/gr/open-buildings/">Open Buildings</a>: While not rasters, the Open Buildings project provides access to building footprints for many countries. These footprints are shapefiles. Building counts can be highly predictive of many outcomes, including poverty. A word of warning: these shapefiles can be <em>very</em> large, so working with them can be difficult in terms of computer memory.</li>
+</ul>
+<p>Here, we briefly discuss two of these in more detail.</p>
+</section>
+<section id="worldpop" class="level2" data-number="4.6">
+<h2 data-number="4.6" class="anchored" data-anchor-id="worldpop"><span class="header-section-number">4.6</span> Worldpop</h2>
+<p><a href="https://www.worldpop.org/">WorldPop</a> provides (modeled/estimated) population data at a disaggreated level for almost all countries. The data is available at different resolutions (e.g.&nbsp;100m and 1km) and for different years, with the most recent year available at the time of writing being 2020. Worldpop data is probably the easiest data to access of all the raster data discussed here. You can download data directly from <a href="https://hub.worldpop.org/project/categories?id=3">the website</a> by selecting the methodology (unconstrained vs.&nbsp;constrained)<a href="#fn10" class="footnote-ref" id="fnref10" role="doc-noteref"><sup>10</sup></a> and resolution (100m vs.&nbsp;1km) and then searching for the country and year of interest. You can then directly download a <code>.tif</code> file that you can read into <code>R</code> using the methods described above.</p>
+</section>
+<section id="mosaiks" class="level2" data-number="4.7">
+<h2 data-number="4.7" class="anchored" data-anchor-id="mosaiks"><span class="header-section-number">4.7</span> Mosaiks</h2>
+<p><a href="https://www.mosaiks.org/">Mosaiks</a> provides access to features (rasters) which have been produced using machine learning and satellite imagery (<a href="#2">Rolf et al., 2021</a>). The entire dataset is very large, so it is strongly recommend that you download only the spatial areas you need. To access the raw features, you need to create an account on <a href="https://api.mosaiks.org/home/index/">the website</a>. After logging in, you can click <code>Map Query</code> at the top of the page and then use the coordinates for a bounding box to download just the data you need.</p>
+<p>Accessing the data can be a bit challenging due to restrictions on the number of records that you can download at one time. As such, for larger areas, you will have to download the data in smaller chunks. There is an alternative, however. This will result in slightly less accurate data, but it is much faster and can still provide acceptable predictive power. At the top of the website, there is a <code>File Query</code> option. If you select this and provide a <code>.csv</code> file with the coordinates for each admin area you are interested in, it will return the data associated with those coordinates. For example, you can create “centroids” for our admin 4 (EA) shapefile for Malawi, as follows:</p>
+<div class="cell" data-layout-align="center">
+<div class="sourceCode cell-code" id="cb29"><pre class="sourceCode numberSource r number-lines code-with-copy"><code class="sourceCode r"><span id="cb29-1"><a href="#cb29-1"></a>mw4 <span class="ot">&lt;-</span> <span class="fu">vect</span>(<span class="st">"data/mw4.shp"</span>)</span>
+<span id="cb29-2"><a href="#cb29-2"></a><span class="co"># create centroids</span></span>
+<span id="cb29-3"><a href="#cb29-3"></a>mw4centroids <span class="ot">&lt;-</span> <span class="fu">centroids</span>(mw4)</span>
+<span id="cb29-4"><a href="#cb29-4"></a><span class="co"># create Latitude and Longitude columns:</span></span>
+<span id="cb29-5"><a href="#cb29-5"></a>mw4centroids<span class="sc">$</span>Latitude <span class="ot">&lt;-</span> <span class="fu">geom</span>(mw4centroids)[,<span class="st">"y"</span>] <span class="co">#"lat" column</span></span>
+<span id="cb29-6"><a href="#cb29-6"></a>mw4centroids<span class="sc">$</span>Longitude <span class="ot">&lt;-</span> <span class="fu">geom</span>(mw4centroids)[,<span class="st">"x"</span>] <span class="co">#"lon" column</span></span>
+<span id="cb29-7"><a href="#cb29-7"></a><span class="co"># just keep what we want</span></span>
+<span id="cb29-8"><a href="#cb29-8"></a>mw4centroids <span class="ot">&lt;-</span> <span class="fu">as_tibble</span>(mw4centroids) <span class="sc">|&gt;</span></span>
+<span id="cb29-9"><a href="#cb29-9"></a>  <span class="fu">select</span>(Latitude, Longitude, EA_CODE)</span>
+<span id="cb29-10"><a href="#cb29-10"></a><span class="co"># save</span></span>
+<span id="cb29-11"><a href="#cb29-11"></a><span class="fu">write_csv</span>(mw4centroids, <span class="st">"data/mw4centroids.csv"</span>)</span>
+<span id="cb29-12"><a href="#cb29-12"></a><span class="co"># here's how it looks</span></span>
+<span id="cb29-13"><a href="#cb29-13"></a><span class="fu">head</span>(mw4centroids)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code># A tibble: 6 × 3
+  Latitude Longitude EA_CODE 
+     &lt;dbl&gt;     &lt;dbl&gt; &lt;chr&gt;   
+1    -12.6      33.6 10507801
+2    -12.7      33.7 10507072
+3    -12.5      33.6 10507010
+4    -12.4      33.7 10507001
+5    -12.5      33.6 10507009
+6    -12.5      33.6 10507033</code></pre>
+</div>
+</div>
+<p>You can upload this <code>.csv</code> file to the <code>File Query</code> page on the Mosaiks website and, after some time, you will find the resulting data on the <code>My Files</code> page. To note that you do not have to name the columns exactly as in the example above; the website allows you to select the correct columns for the x and y coordinates. However, to make things simpler, the above code uses the same names and column order as the website example.</p>
+</section>
+<section id="sec-eeapi" class="level2" data-number="4.8">
+<h2 data-number="4.8" class="anchored" data-anchor-id="sec-eeapi"><span class="header-section-number">4.8</span> Using Python to access Google Earth Engine</h2>
+<p>While there are many ways to access raster data, probably the largest collection of datasets is <a href="https://earthengine.google.com/">Google Earth Engine (GEE)</a> (<a href="#1">Gorelick et al., 2017</a>). GEE is a data repository that includes many different types of raster data, including satellite imagery, climate data, vegetation indices, land classification, and many others.</p>
+<p>Unfortunately, downloading data from GEE is not as simple as downloading a file from one of the websites listed above. GEE has a code editor available on the website, but it can be difficult for users who are not familiar with JavaScript. There is also an API<a href="#fn11" class="footnote-ref" id="fnref11" role="doc-noteref"><sup>11</sup></a>, but it runs on Python. While there is an <code>R</code> package, it is just a wrapper for Python, meaning you still have to have Python downloaded and install on your computer. In addition, getting Python to run in <code>R</code> – using the <code>reticulate</code> package – brings its own challenges. For the purpose of this guide, it is therefore recommended that you use Python directly to access GEE.</p>
+<p>One option is to simply use Python on your own computer. However, we find that this presents its own challenges, as getting a new installation of Python up and running can be difficult for those without any experience using Python. Instead, we recommend that users use <a href="https://colab.research.google.com/">Google Colab</a>, which is a free service that allows you to run Python code in the cloud. Using Google Colab has the advantage of not having to install Python on your computer (and it also allows you to access the data from anywhere you have internet access, which of course can also be a downside).</p>
+<p>To start, we have uploaded a Python “notebook” to the GitHub repository that provides information on how to download data; the notebook is called <code>geospatialpull.ipynb</code>. To get started, you need to create an account on Google Earth Engine. From the <a href="https://earthengine.google.com/">GEE homepage</a>, click on <code>Get Started</code> in the upper-right corner. You will need a Google account to sign in, then you will have to follow the steps for registering a noncommercial project, creating a new “Google Cloud Project,” and enabling the Earth Engine API. After following the steps to create a “Cloud Project,” you will be able to access the Earth Engine API. <em>Make sure to take note of the project’s name, which you will need later.</em></p>
+<p>After creating your GEE account, you can copy the <code>geospatialpull.ipynb</code> notebook into Google Colab. You can do this by going to the <a href="https://colab.research.google.com/">Google Colab website</a> and clicking on <code>File &gt; New Notebook in Drive</code>. You can then copy-paste the code from the <code>geospatialpull.ipynb</code> notebook into the Google Colab notebook. You need a Google account, but you should already have one from the above instructions to create a GEE account; use the same account to log in to Google Colab, if asked.</p>
+<p>You will need to authenticate your Google account by running lines 14-20 in the example script (after copy-pasting the entire script into the Google Colab notebook), which will allow you to access the GEE API. You can do this by selecting all the relevant lines and pressing control + enter (or command + enter on a Mac). You will be asked to allow access to your GEE account, which you should allow.</p>
+<section id="using-the-python-script" class="level3" data-number="4.8.1">
+<h3 data-number="4.8.1" class="anchored" data-anchor-id="using-the-python-script"><span class="header-section-number">4.8.1</span> Using the Python script</h3>
+<p>The <code>geospatialpull.ipynb</code> notebook includes several different steps. First, you need to authenticate the API using the <code>ee.Authenticate()</code> function (discussed above). This will open a new tab in your browser, where you will be asked to sign in to your Google account and to allow the API to access your account. After clicking through the steps, you will see an API key, which you need to copy. You can then paste this key into the terminal and press enter, which will allow you to access the API.</p>
+<p>Second, you will need to initialize the API using the <code>ee.Initialize()</code> function. You should specify the name of the cloud project from above, as follows:</p>
+<div class="cell" data-layout-align="center">
+<div class="sourceCode cell-code" id="cb31"><pre class="sourceCode numberSource python number-lines code-with-copy"><code class="sourceCode python"><span id="cb31-1"><a href="#cb31-1"></a>ee.Authenticate()</span>
+<span id="cb31-2"><a href="#cb31-2"></a>ee.Initialize(project<span class="op">=</span><span class="st">"NAME"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<p>where <code>"NAME"</code> needs to be the name of your cloud project. In other words, you will need to change the script in Google Colab to include the name of your cloud project.</p>
+<p>One nice thing about Google Colab is that you can upload a shapefile to <em>your</em> Google Drive, which you now have access to after making a Google account. You can also upload it to your drive directly through Google Colab. On the far left side of the screen, there are five icons – the first looks like three bullet points and the last one looks like a folder. Click the folder. Then, you will see four separate icons after clicking the folder; the third icon looks like a folder with an icon on it (if you hover over the icon, it will say “Mount Drive”). Click it. Google will then prompt you to mount your drive manually; simply follow the instructions and click through any approvals that pop up. Finally, after the drive is “mounted,” click on “drive” and then on “MyDrive”. If you hover over “MyDrive” you will see three dots on the right side. Click those, then select “upload” and upload <em>all</em> of the files associated with your shapefile. In other words, for Malawi you have to include <em>all</em> of the <code>mw3</code> files, not just <code>mw3.shp</code>. In this case, there are four separate files: <code>mw3.shp</code>, <code>mw3.shx</code>, <code>mw3.dbf</code>, and <code>mw3.prj</code>.</p>
+<p>In our example, we are using a shapefile from Malawi. If you have already uploaded the shapefile, can skip most of the steps above and simply “mount” the drive in Google Colab, using the code already in the notebook:</p>
+<div class="cell" data-layout-align="center">
+<div class="sourceCode cell-code" id="cb32"><pre class="sourceCode numberSource python number-lines code-with-copy"><code class="sourceCode python"><span id="cb32-1"><a href="#cb32-1"></a><span class="im">from</span> google.colab <span class="im">import</span> drive</span>
+<span id="cb32-2"><a href="#cb32-2"></a>drive.mount(<span class="st">'/content/drive'</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<p>We have put our shapefile (<code>mw3.shp</code>) in our Google Drive folder. After actually running the above code (click on the “play” button on upper-left-hand side of the code “chunk”), you will be able to see your Google Drive on the left-hand side of the screen, as in <a href="#fig-colab" class="quarto-xref">Figure&nbsp;8</a>.</p>
+<div id="fig-colab" class="quarto-float quarto-figure quarto-figure-center anchored" data-fig-align="center">
+<figure class="quarto-float quarto-float-fig figure">
+<figcaption class="quarto-float-caption-top quarto-float-caption quarto-float-fig" id="fig-colab-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+Figure&nbsp;8: Mounting Google Drive in Colab
+</figcaption>
+<div aria-describedby="fig-colab-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+<img src="assets/colabdrive.png" class="img-fluid quarto-figure quarto-figure-center figure-img">
+</div>
+</figure>
+</div>
+<p>If you click the three dots, you can then click on “Copy path” to get the path to the shapefile. You can then use this path in the Python script to load the shapefile into Python using the library “geopandas”. Here is the code for the location of <code>mw3.shp</code> in my Google Drive (you might have to change the path based on the location of your shapefile, which you copied with “Copy path”):</p>
+<div class="cell" data-layout-align="center">
+<div class="sourceCode cell-code" id="cb33"><pre class="sourceCode numberSource python number-lines code-with-copy"><code class="sourceCode python"><span id="cb33-1"><a href="#cb33-1"></a>shape <span class="op">=</span> geopandas.read_file(<span class="st">"/content/drive/MyDrive/mw3.shp"</span>)</span>
+<span id="cb33-2"><a href="#cb33-2"></a><span class="co"># make sure it is in lat/lon (project it)</span></span>
+<span id="cb33-3"><a href="#cb33-3"></a>shape <span class="op">=</span> shape.to_crs(<span class="st">"EPSG:4326"</span>)</span>
+<span id="cb33-4"><a href="#cb33-4"></a><span class="co"># let's get the total bounds for the shapefile</span></span>
+<span id="cb33-5"><a href="#cb33-5"></a>bounds <span class="op">=</span> shape.total_bounds</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<p>In addition to loading the shapefile into Python, the code does two additional things. First, it reprojects the shapefile into longitude/latitude (“EPSG:4326”, which we already saw above). We need this in order to create a proper “box” for our region. Then, it finds the “total bounds” of the shape, which is the box that completely contains the shapefile (see <a href="./appendices.html#figa-bboxexample">Figure A1 in the appendix</a>). We will use this box to define the region from which we want to download data.</p>
+<p>Now you need to decide what GEE dataset we want to download. As an example, let’s look for NDVI. Navigate to the <a href="https://earthengine.google.com/">GEE homepage</a> and click on “Datasets” at the top of the page (near the middle). On the next page, click “View all datasets.” From the <a href="https://developers.google.com/earth-engine/datasets/catalog">next page</a>, we can search for datasets using key words. Search for “NDVI” (without quotes) and press enter. Here, you will see many search results, as in <a href="#fig-gee" class="quarto-xref">Figure&nbsp;9</a>.</p>
+<div id="fig-gee" class="quarto-float quarto-figure quarto-figure-center anchored" data-fig-align="center">
+<figure class="quarto-float quarto-float-fig figure">
+<figcaption class="quarto-float-caption-top quarto-float-caption quarto-float-fig" id="fig-gee-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+Figure&nbsp;9: Google Earth Engine Search Results
+</figcaption>
+<div aria-describedby="fig-gee-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+<img src="assets/GEE.png" class="img-fluid quarto-figure quarto-figure-center figure-img" style="width:100.0%">
+</div>
+</figure>
+</div>
+<p>Download monthly NDVI at 1km, which in the above figure is the third option. Click on that dataset, which is called <code>MOD13A3.061 Vegetation Indices Monthly L3 Global 1 km SIN Grid</code>. On the next page, you will see a description of the data. Some of the important information on this page is:</p>
+<ul>
+<li><code>Dataset Availability</code>: This shows the dates for which data is available. In this case, the data starts in February of 2000 and goes to the present (or, at least, a month before the present).</li>
+<li><code>Dataset Provider</code>: Where the data comes from.</li>
+<li><code>Earth Engine Snippet</code>: This is very important. This is the identifier you will use to access the data in Python. For this dataset, the identifier is <code>MODIS/061/MOD13A3</code>.</li>
+<li><code>Bands</code>: There is a list of different tabs, just below the <code>Tags</code> section. The <code>Bands</code> tab shows:
+<ul>
+<li>The resolution of the raster. We chose the <code>1km</code> option, so its resolution is 1000 meters.</li>
+<li>The name of the bands. In this case, there are two bands of vegetation indices: NDVI and EVI. We will just focus on NDVI for now.</li>
+<li>The minimum and max values of the bands. NDVI should be between -1 and 1, which we can recover by multiplying the min/max values by the scale (in this case, 0.0001). However, given what we want to do with the data, it is okay for us to simply leave it in its original values.</li>
+</ul></li>
+</ul>
+<p>Now let’s try to access this dataset in Python. You can use the <code>ee.ImageCollection</code> function to access the data. The code is as follows:</p>
+<div class="cell" data-layout-align="center">
+<div class="sourceCode cell-code" id="cb34"><pre class="sourceCode numberSource python number-lines code-with-copy"><code class="sourceCode python"><span id="cb34-1"><a href="#cb34-1"></a><span class="co"># Let's look at NDVI</span></span>
+<span id="cb34-2"><a href="#cb34-2"></a>ndvi <span class="op">=</span> ee.ImageCollection(<span class="st">"MODIS/061/MOD13A3"</span>)</span>
+<span id="cb34-3"><a href="#cb34-3"></a><span class="bu">print</span>(ndvi.getInfo())</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<p>This tells the API to access the specified dataset, which is an “Image Collection.” The <code>print(ndvi.getInfo())</code> command will print information in the console. In this case, it prints a <em>lot</em> of information, so it is not reproduced below. If it prints information, you will know that you successfully queried the dataset and can move on to the next step.</p>
+<p>This dataset covers more than 20 years. The household data we are using is for 2019, so for now we will just download 2019 data.<a href="#fn12" class="footnote-ref" id="fnref12" role="doc-noteref"><sup>12</sup></a> In particular, let’s start with just January 2019. You can do this by filtering the <code>ndvi</code> object, as follows:</p>
+<div class="cell" data-layout-align="center">
+<div class="sourceCode cell-code" id="cb35"><pre class="sourceCode numberSource python number-lines code-with-copy"><code class="sourceCode python"><span id="cb35-1"><a href="#cb35-1"></a>ndvi <span class="op">=</span> ndvi.filterDate(<span class="st">"2019-01-01"</span>, <span class="st">"2019-01-31"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<p>You now have a filtered dataset that contains data for January 2019. We are now going to do two more things. First, we are going to select only NDVI (i.e.&nbsp;get rid of EVI). Second, we are going to take the “mean” of the image – which really takes the mean of each cell in the raster – in order to make sure that we have only a single image, and not an image collection. The code for this is as follows:</p>
+<div class="cell" data-layout-align="center">
+<div class="sourceCode cell-code" id="cb36"><pre class="sourceCode numberSource python number-lines code-with-copy"><code class="sourceCode python"><span id="cb36-1"><a href="#cb36-1"></a><span class="co"># for assets that have many bands (raster layers), we can select the specific ones we want:</span></span>
+<span id="cb36-2"><a href="#cb36-2"></a>ndvi <span class="op">=</span> ndvi.select(<span class="st">"NDVI"</span>)</span>
+<span id="cb36-3"><a href="#cb36-3"></a>ndvi</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>&lt;ee.imagecollection.ImageCollection object at 0x35ed71730&gt;</code></pre>
+</div>
+<div class="sourceCode cell-code" id="cb38"><pre class="sourceCode numberSource python number-lines code-with-copy"><code class="sourceCode python"><span id="cb38-1"><a href="#cb38-1"></a><span class="co"># finally, just make sure we have an IMAGE, not an image collection</span></span>
+<span id="cb38-2"><a href="#cb38-2"></a>ndvi <span class="op">=</span> ndvi.mean()</span>
+<span id="cb38-3"><a href="#cb38-3"></a>ndvi</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>&lt;ee.image.Image object at 0x365ae3560&gt;</code></pre>
+</div>
+</div>
+<p>We can see the change in the output after <code>ndvi.mean()</code>. Before the function call, the <code>ndvi</code> object had the class <code>ee.imagecollection.ImageCollection</code>. However, after the mean call, the object is now of class <code>ee.image.Image</code>. This is what we want, since we can now download the data.</p>
+<p>We also want to select data for just a portion of the globe, and not the entire globe, in order to make the code faster and decrease the size of the resulting raster. We already created the bounding box for Northern Malawi, but one change is needed so that GEE will interpret the box correctly. We are going to create an <code>ee.Geometry.Bbox</code> object. To do so, we need to give it four values:</p>
+<ol type="1">
+<li>The minimum longitude</li>
+<li>The minimum latitude</li>
+<li>The maximum longitude</li>
+<li>The maximum latitude</li>
+</ol>
+<p>It will not accept the <code>array</code> object we created prior, so we are going to create the geometry object as follows:<a href="#fn13" class="footnote-ref" id="fnref13" role="doc-noteref"><sup>13</sup></a></p>
+<div class="cell" data-layout-align="center">
+<div class="sourceCode cell-code" id="cb40"><pre class="sourceCode numberSource python number-lines code-with-copy"><code class="sourceCode python"><span id="cb40-1"><a href="#cb40-1"></a><span class="co">"""</span></span>
+<span id="cb40-2"><a href="#cb40-2"></a><span class="co">let's create a bounding box in earth engine.</span></span>
+<span id="cb40-3"><a href="#cb40-3"></a><span class="co">Note the syntax (xmin, ymin, xmax, ymax)</span></span>
+<span id="cb40-4"><a href="#cb40-4"></a><span class="co">this does not accept an array (which is what bounds was), </span></span>
+<span id="cb40-5"><a href="#cb40-5"></a><span class="co">so we will extract the individual components</span></span>
+<span id="cb40-6"><a href="#cb40-6"></a><span class="co">Also note that indexing in python starts at 0, not 1! bounds[0] </span></span>
+<span id="cb40-7"><a href="#cb40-7"></a><span class="co">gives the first value in the array</span></span>
+<span id="cb40-8"><a href="#cb40-8"></a><span class="co">"""</span></span>
+<span id="cb40-9"><a href="#cb40-9"></a>bbox <span class="op">=</span> ee.Geometry.BBox(bounds[<span class="dv">0</span>], bounds[<span class="dv">1</span>], bounds[<span class="dv">2</span>], bounds[<span class="dv">3</span>])</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<p>We can now send the <code>bbox</code> with our code to GEE, which will return only data that is within the bounding box.</p>
+<p>Here is the code to start the download, which is described further below:</p>
+<div class="cell" data-layout-align="center">
+<div class="sourceCode cell-code" id="annotated-cell-27"><pre class="sourceCode numberSource python code-annotation-code number-lines code-with-copy code-annotated"><code class="sourceCode python"><a class="code-annotation-anchor" data-target-cell="annotated-cell-27" data-target-annotation="1" onclick="event.preventDefault();">1</a><span id="annotated-cell-27-1" class="code-annotation-target"><a href="#annotated-cell-27-1"></a>task <span class="op">=</span> ee.batch.Export.image.toDrive(image<span class="op">=</span>ndvi,</span>
+<a class="code-annotation-anchor" data-target-cell="annotated-cell-27" data-target-annotation="2" onclick="event.preventDefault();">2</a><span id="annotated-cell-27-2" class="code-annotation-target"><a href="#annotated-cell-27-2"></a>  description<span class="op">=</span><span class="st">'ndvi1'</span>,</span>
+<a class="code-annotation-anchor" data-target-cell="annotated-cell-27" data-target-annotation="3" onclick="event.preventDefault();">3</a><span id="annotated-cell-27-3" class="code-annotation-target"><a href="#annotated-cell-27-3"></a>  scale<span class="op">=</span><span class="dv">1000</span>,</span>
+<a class="code-annotation-anchor" data-target-cell="annotated-cell-27" data-target-annotation="4" onclick="event.preventDefault();">4</a><span id="annotated-cell-27-4" class="code-annotation-target"><a href="#annotated-cell-27-4"></a>  region<span class="op">=</span>bbox,</span>
+<a class="code-annotation-anchor" data-target-cell="annotated-cell-27" data-target-annotation="5" onclick="event.preventDefault();">5</a><span id="annotated-cell-27-5" class="code-annotation-target"><a href="#annotated-cell-27-5"></a>  crs<span class="op">=</span><span class="st">'EPSG:4326'</span>,</span>
+<a class="code-annotation-anchor" data-target-cell="annotated-cell-27" data-target-annotation="6" onclick="event.preventDefault();">6</a><span id="annotated-cell-27-6" class="code-annotation-target"><a href="#annotated-cell-27-6"></a>  fileFormat<span class="op">=</span><span class="st">'GeoTIFF'</span>)</span>
+<a class="code-annotation-anchor" data-target-cell="annotated-cell-27" data-target-annotation="7" onclick="event.preventDefault();">7</a><span id="annotated-cell-27-7" class="code-annotation-target"><a href="#annotated-cell-27-7"></a>task.start()</span>
+<a class="code-annotation-anchor" data-target-cell="annotated-cell-27" data-target-annotation="8" onclick="event.preventDefault();">8</a><span id="annotated-cell-27-8" class="code-annotation-target"><a href="#annotated-cell-27-8"></a>task.status()</span><div class="code-annotation-gutter-bg"></div><div class="code-annotation-gutter"></div></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-annotation">
+<dl class="code-annotation-container-grid">
+<dt data-target-cell="annotated-cell-27" data-target-annotation="1">1</dt>
+<dd>
+<span data-code-cell="annotated-cell-27" data-code-lines="1" data-code-annotation="1"><code>image=ndvi</code>: This is the image we want to download. In this case, it is the mean NDVI for January 2019 (which we specified prior to this call).</span>
+</dd>
+<dt data-target-cell="annotated-cell-27" data-target-annotation="2">2</dt>
+<dd>
+<span data-code-cell="annotated-cell-27" data-code-lines="2" data-code-annotation="2"><code>description='ndvi1'</code>: This is the name of the file that will be downloaded. You can change this to whatever you want.</span>
+</dd>
+<dt data-target-cell="annotated-cell-27" data-target-annotation="3">3</dt>
+<dd>
+<span data-code-cell="annotated-cell-27" data-code-lines="3" data-code-annotation="3"><code>scale=1000</code>: This is the resolution of the raster. This GEE dataset has 1000m resolution, so it makes sense to choose the same here. It never makes sense to choose a resolution <em>higher</em> (i.e.&nbsp;smaller) than the original resolution, but you can choose a resolution that is lower (i.e.&nbsp;larger), for example to export a smaller object.</span>
+</dd>
+<dt data-target-cell="annotated-cell-27" data-target-annotation="4">4</dt>
+<dd>
+<span data-code-cell="annotated-cell-27" data-code-lines="4" data-code-annotation="4"><code>region=bbox</code>: This is the region of the world we want to download. We created our box using Northern Malawi.</span>
+</dd>
+<dt data-target-cell="annotated-cell-27" data-target-annotation="5">5</dt>
+<dd>
+<span data-code-cell="annotated-cell-27" data-code-lines="5" data-code-annotation="5"><code>crs='EPSG:4326'</code>: Specifying the CRS we want to download. In this example, longitude/latitute is used.</span>
+</dd>
+<dt data-target-cell="annotated-cell-27" data-target-annotation="6">6</dt>
+<dd>
+<span data-code-cell="annotated-cell-27" data-code-lines="6" data-code-annotation="6"><code>fileFormat='GeoTIFF'</code>: The format of the file we want to download. As it is a raster, we will download a <code>GeoTIFF</code> (<code>.tif</code> file.)</span>
+</dd>
+<dt data-target-cell="annotated-cell-27" data-target-annotation="7">7</dt>
+<dd>
+<span data-code-cell="annotated-cell-27" data-code-lines="7" data-code-annotation="7"><code>task.start()</code>: This starts the download. You must run this line in order to actually download the data.</span>
+</dd>
+<dt data-target-cell="annotated-cell-27" data-target-annotation="8">8</dt>
+<dd>
+<span data-code-cell="annotated-cell-27" data-code-lines="8" data-code-annotation="8">(Optional) <code>task.status()</code>: This will give you the status of the download. Depending on the size of the data, the entire process can sometimes take a while. In this example, it should be relatively quick. </span>
+</dd>
+</dl>
+</div>
+</div>
+<p>When the task has finished, the resulting raster – in this case, <code>ndvi1.tif</code> – will be saved in the Google Drive associated with the account you used to sign into GEE. The free version of Drive has only 1GB of storage, so be careful with memory management. It is recommended you move the <code>.tif</code> files out of Drive and onto your computer as soon as it has finished downloading.</p>
+<p>In the <code>geospatialpull.ipynb</code> notebook, there is also an example of how to download a raster for every month of 2019 using a ‘for loop’. Please see lines 70 to 101 in that script.</p>
+<p>You can follow the same steps for any other indicator. Here, we provide one more example for land cover, which is highly correlated with urbanity and, as such, poverty. The proper identifier for the dataset we are going to use is <code>COPERNICUS/Landcover/100m/Proba-V-C3/Global</code>, which provides <em>annual</em> estimates of land cover at a resolution of 100m. You can find information for this dataset on GEE, <a href="https://developers.google.com/earth-engine/datasets/catalog/COPERNICUS_Landcover_100m_Proba-V-C3_Global">here</a>.</p>
+<p>As before, we load the dataset, filter it for 2019 (in this case, we are going to filter for the entirey of 2019, and not just January), select the bands we want, and then download it. The code is as follows:</p>
+<div class="cell" data-layout-align="center">
+<div class="sourceCode cell-code" id="cb41"><pre class="sourceCode numberSource python number-lines code-with-copy"><code class="sourceCode python"><span id="cb41-1"><a href="#cb41-1"></a><span class="co"># get the collection</span></span>
+<span id="cb41-2"><a href="#cb41-2"></a>lc <span class="op">=</span> ee.ImageCollection(<span class="st">"COPERNICUS/Landcover/100m/Proba-V-C3/Global"</span>)</span>
+<span id="cb41-3"><a href="#cb41-3"></a><span class="co"># We can also filter the collection by date. All of 2019.</span></span>
+<span id="cb41-4"><a href="#cb41-4"></a>lc <span class="op">=</span> lc.filterDate(<span class="st">"2019-01-01"</span>, <span class="st">"2019-12-31"</span>).first()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<p>Note the use of <code>.first()</code> on line four. This insures that the function returns an image, not an image collection. We can then select the bands we want and download the data, as we did with NDVI. On the GEE page for this dataset, you can see that it has many different bands. We are going to download all of the bands with the word “coverfraction” in them. To get the names of the bands, we can use <code>.bandNames().getInfo()</code>:</p>
+<div class="cell" data-layout-align="center" data-code-block-border-left="false">
+<div class="sourceCode cell-code" id="cb42"><pre class="sourceCode numberSource python number-lines code-with-copy"><code class="sourceCode python"><span id="cb42-1"><a href="#cb42-1"></a>bandnames <span class="op">=</span> lc.bandNames().getInfo()</span>
+<span id="cb42-2"><a href="#cb42-2"></a>bandnames</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>['discrete_classification', 'discrete_classification-proba', 'bare-coverfraction', 'urban-coverfraction', 'crops-coverfraction', 'grass-coverfraction', 'moss-coverfraction', 'water-permanent-coverfraction', 'water-seasonal-coverfraction', 'shrub-coverfraction', 'snow-coverfraction', 'tree-coverfraction', 'forest_type', 'data-density-indicator', 'change-confidence']</code></pre>
+</div>
+</div>
+<p>Now, we want to select <em>only</em> the band names that contain the string “coverfraction.” There are several ways to do this. One way is to simply note that the bands we want are bands three through 12 (indexed as two through 11 due to differences in Python). We can then use the <code>ee.Image.select()</code> function to select only these bands, remembering that Python calls elements in a list differently than <code>R</code>:</p>
+<div class="cell" data-layout-align="center" data-code-block-border-left="false">
+<div class="sourceCode cell-code" id="cb44"><pre class="sourceCode numberSource python number-lines code-with-copy"><code class="sourceCode python"><span id="cb44-1"><a href="#cb44-1"></a>lc <span class="op">=</span> lc.select(bandnames[<span class="dv">2</span>:<span class="dv">12</span>])</span>
+<span id="cb44-2"><a href="#cb44-2"></a><span class="co"># double check</span></span>
+<span id="cb44-3"><a href="#cb44-3"></a>lc.bandNames().getInfo()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>['bare-coverfraction', 'urban-coverfraction', 'crops-coverfraction', 'grass-coverfraction', 'moss-coverfraction', 'water-permanent-coverfraction', 'water-seasonal-coverfraction', 'shrub-coverfraction', 'snow-coverfraction', 'tree-coverfraction']</code></pre>
+</div>
+</div>
+<p>The <code>geospatialpull.ipynb</code> notebook shows another example, to help make you more familiar and comfortable with loops in Python. You can find the loop on lines 144 to 156 in the Python script.</p>
+<p>After selecting the relevant bands, you can download the data using the same syntax as before (along with the same bounding box):</p>
+<div class="cell" data-layout-align="center">
+<div class="sourceCode cell-code" id="cb46"><pre class="sourceCode numberSource python number-lines code-with-copy"><code class="sourceCode python"><span id="cb46-1"><a href="#cb46-1"></a>task <span class="op">=</span> ee.batch.Export.image.toDrive(image<span class="op">=</span>lc,</span>
+<span id="cb46-2"><a href="#cb46-2"></a>    description<span class="op">=</span><span class="st">'lc'</span>,</span>
+<span id="cb46-3"><a href="#cb46-3"></a>    scale<span class="op">=</span><span class="dv">100</span>, <span class="co"># 100 now, since that's the resolution of the data</span></span>
+<span id="cb46-4"><a href="#cb46-4"></a>    region<span class="op">=</span>bbox,</span>
+<span id="cb46-5"><a href="#cb46-5"></a>    crs<span class="op">=</span><span class="st">'EPSG:4326'</span>,</span>
+<span id="cb46-6"><a href="#cb46-6"></a>    fileFormat<span class="op">=</span><span class="st">'GeoTIFF'</span>)</span>
+<span id="cb46-7"><a href="#cb46-7"></a>task.start()</span>
+<span id="cb46-8"><a href="#cb46-8"></a>task.status()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<p>Note that this will take longer to download than the NDVI data as you are downloading multiple bands, at a higher resolution. After downloading the data, it will again appear in your Google Drive. Move out it and into the folder on your computer in which you have been working.</p>
+</section>
+</section>
+<section id="sec-geolinkapi" class="level2" data-number="4.9">
+<h2 data-number="4.9" class="anchored" data-anchor-id="sec-geolinkapi"><span class="header-section-number">4.9</span> Geolink</h2>
+<p>As of the time of this writing, there is a package being developed to enable the pulling of geospatial data directly in <code>R</code>, without the use of Google Earth Engine or Python. You can find documentation and examples on <a href="https://github.com/SSA-Statistical-Team-Projects/GeoLink">GitHub</a>. This package is still in development, so we encourage readers to check on GitHub for updates.</p>
+</section>
+<section id="finishing-up" class="level2" data-number="4.10">
+<h2 data-number="4.10" class="anchored" data-anchor-id="finishing-up"><span class="header-section-number">4.10</span> Finishing up</h2>
+<p>At this point, you should download all of the geospatial data you need for your SAE model. An important piece of this is estimated population (from WorldPop), which we will use later as weights. Some common datasets used for SAE include:</p>
+<ul>
+<li>Population</li>
+<li>NDVI (by month)</li>
+<li>Nighttime lights</li>
+<li>Land cover classification</li>
+<li>Mosaiks</li>
+</ul>
+<p>You can of course add anything else you think might be helpful. We will use only the above data in the rest of this guide.<a href="#fn14" class="footnote-ref" id="fnref14" role="doc-noteref"><sup>14</sup></a> The final variables, at the EA (admin 4) level, are saved in the <code>finalgeovars</code> folder on the GitHub repo. If you would like to see how these variables in <code>R</code>, please see the <code>geoaggregation.R</code> script in the GitHub repository. The final dataset that we will use for this guide is <code>data/geovarseas.csv</code>.</p>
+</section>
+<section id="references" class="level2" data-number="4.11">
+<h2 data-number="4.11" class="anchored" data-anchor-id="references"><span class="header-section-number">4.11</span> References</h2>
+<p><a id="1"></a> Gorelick, Noel, Matt Hancher, Mike Dixon, Simon Ilyushchenko, David Thau, and Rebecca Moore. 2017. “Google Earth Engine: Planetary-Scale Geospatial Analysis for Everyone.” Remote Sensing of Environment. https://doi.org/10.1016/j.rse.2017.06.031.</p>
+<p><a id="2"></a> Rolf, Esther, Jonathan Proctor, Tamma Carleton, Ian Bolliger, Vaishaal Shankar, Miyabi Ishihara, Benjamin Recht, and Solomon Hsiang. 2021. “A Generalizable and Accessible Approach to Machine Learning with Global Satellite Imagery.” Nature Communications 12 (1): 4392.</p>
+
+
+</section>
+</section>
+
+
+<div id="quarto-appendix" class="default"><section id="footnotes" class="footnotes footnotes-end-of-document" role="doc-endnotes"><h2 class="anchored quarto-appendix-heading">Footnotes</h2>
+
+<ol>
+<li id="fn1"><p>While a square only has four corners, a fifth point is required in order to <em>close</em> the feature and create a polygon. In other words, the first and last points are the same point.<a href="#fnref1" class="footnote-back" role="doc-backlink">↩︎</a></p></li>
+<li id="fn2"><p>The GnBu palette is a palette from <code>RColorBrewer</code>. You can find its palettes <a href="https://r-graph-gallery.com/38-rcolorbrewers-palettes.html">here</a>.<a href="#fnref2" class="footnote-back" role="doc-backlink">↩︎</a></p></li>
+<li id="fn3"><p>NDVI traditionally ranges between -1 and 1. The values here go up to 10,000 due to the way the data is scaled on Google Earth Engine (which we return to below).<a href="#fnref3" class="footnote-back" role="doc-backlink">↩︎</a></p></li>
+<li id="fn4"><p>For example, for nightlights, we might decide to aggregate by taking the mean value from the raster tiles that overlap with a given polygon. For population, on the other hand, we would probably want to take the sum.<a href="#fnref4" class="footnote-back" role="doc-backlink">↩︎</a></p></li>
+<li id="fn5"><p>You can find the <code>adm4.shp</code> file in the <code>data</code> folder.<a href="#fnref5" class="footnote-back" role="doc-backlink">↩︎</a></p></li>
+<li id="fn6"><p>We use the <code>head()</code> function to show just the first six rows of the resulting object.<a href="#fnref6" class="footnote-back" role="doc-backlink">↩︎</a></p></li>
+<li id="fn7"><p>We have restricted the data to only Northern Malawi.<a href="#fnref7" class="footnote-back" role="doc-backlink">↩︎</a></p></li>
+<li id="fn8"><p>Any households with missing (<code>NA</code>) coordinates were removed when we transformed the data into a spatial object.<a href="#fnref8" class="footnote-back" role="doc-backlink">↩︎</a></p></li>
+<li id="fn9"><p>You may not get the size right on the first try, especially in degrees. The goal is to get a grid that is small enough to capture the variation in the data, but not so small that the model will be bad.<a href="#fnref9" class="footnote-back" role="doc-backlink">↩︎</a></p></li>
+<li id="fn10"><p>According to the WorldPop website, the two methods are “1. Estimation over all land grid squares globally (unconstrained), and 2. estimation only within areas mapped as containing built settlements (constrained).”<a href="#fnref10" class="footnote-back" role="doc-backlink">↩︎</a></p></li>
+<li id="fn11"><p>You can find an excellent introduction to APIs on the <a href="https://www.ibm.com/topics/api">IBM website</a>.<a href="#fnref11" class="footnote-back" role="doc-backlink">↩︎</a></p></li>
+<li id="fn12"><p>In theory, we could also construct long-run means or standard deviations, which would require pulling data for other years, as well. However, for parsimony, we focus just on 2019 here.<a href="#fnref12" class="footnote-back" role="doc-backlink">↩︎</a></p></li>
+<li id="fn13"><p>Python uses something called “zero indexing.” This means that the first element in a Python object is listed as 0, and not 1. This is different from <code>R</code>.<a href="#fnref13" class="footnote-back" role="doc-backlink">↩︎</a></p></li>
+<li id="fn14"><p>In the uploaded data on GitHub, we only include a subset of Mosaiks features due to its size. If you have the RAM, you can download and include all of them.<a href="#fnref14" class="footnote-back" role="doc-backlink">↩︎</a></p></li>
+</ol>
+</section></div></main> <!-- /main -->
+<script id="quarto-html-after-body" type="application/javascript">
+window.document.addEventListener("DOMContentLoaded", function (event) {
+  const toggleBodyColorMode = (bsSheetEl) => {
+    const mode = bsSheetEl.getAttribute("data-mode");
+    const bodyEl = window.document.querySelector("body");
+    if (mode === "dark") {
+      bodyEl.classList.add("quarto-dark");
+      bodyEl.classList.remove("quarto-light");
+    } else {
+      bodyEl.classList.add("quarto-light");
+      bodyEl.classList.remove("quarto-dark");
+    }
+  }
+  const toggleBodyColorPrimary = () => {
+    const bsSheetEl = window.document.querySelector("link#quarto-bootstrap");
+    if (bsSheetEl) {
+      toggleBodyColorMode(bsSheetEl);
+    }
+  }
+  toggleBodyColorPrimary();  
+  const icon = "";
+  const anchorJS = new window.AnchorJS();
+  anchorJS.options = {
+    placement: 'right',
+    icon: icon
+  };
+  anchorJS.add('.anchored');
+  const isCodeAnnotation = (el) => {
+    for (const clz of el.classList) {
+      if (clz.startsWith('code-annotation-')) {                     
+        return true;
+      }
+    }
+    return false;
+  }
+  const onCopySuccess = function(e) {
+    // button target
+    const button = e.trigger;
+    // don't keep focus
+    button.blur();
+    // flash "checked"
+    button.classList.add('code-copy-button-checked');
+    var currentTitle = button.getAttribute("title");
+    button.setAttribute("title", "Copied!");
+    let tooltip;
+    if (window.bootstrap) {
+      button.setAttribute("data-bs-toggle", "tooltip");
+      button.setAttribute("data-bs-placement", "left");
+      button.setAttribute("data-bs-title", "Copied!");
+      tooltip = new bootstrap.Tooltip(button, 
+        { trigger: "manual", 
+          customClass: "code-copy-button-tooltip",
+          offset: [0, -8]});
+      tooltip.show();    
+    }
+    setTimeout(function() {
+      if (tooltip) {
+        tooltip.hide();
+        button.removeAttribute("data-bs-title");
+        button.removeAttribute("data-bs-toggle");
+        button.removeAttribute("data-bs-placement");
+      }
+      button.setAttribute("title", currentTitle);
+      button.classList.remove('code-copy-button-checked');
+    }, 1000);
+    // clear code selection
+    e.clearSelection();
+  }
+  const getTextToCopy = function(trigger) {
+      const codeEl = trigger.previousElementSibling.cloneNode(true);
+      for (const childEl of codeEl.children) {
+        if (isCodeAnnotation(childEl)) {
+          childEl.remove();
+        }
+      }
+      return codeEl.innerText;
+  }
+  const clipboard = new window.ClipboardJS('.code-copy-button:not([data-in-quarto-modal])', {
+    text: getTextToCopy
+  });
+  clipboard.on('success', onCopySuccess);
+  if (window.document.getElementById('quarto-embedded-source-code-modal')) {
+    const clipboardModal = new window.ClipboardJS('.code-copy-button[data-in-quarto-modal]', {
+      text: getTextToCopy,
+      container: window.document.getElementById('quarto-embedded-source-code-modal')
+    });
+    clipboardModal.on('success', onCopySuccess);
+  }
+    var localhostRegex = new RegExp(/^(?:http|https):\/\/localhost\:?[0-9]*\//);
+    var mailtoRegex = new RegExp(/^mailto:/);
+      var filterRegex = new RegExp('/' + window.location.host + '/');
+    var isInternal = (href) => {
+        return filterRegex.test(href) || localhostRegex.test(href) || mailtoRegex.test(href);
+    }
+    // Inspect non-navigation links and adorn them if external
+ 	var links = window.document.querySelectorAll('a[href]:not(.nav-link):not(.navbar-brand):not(.toc-action):not(.sidebar-link):not(.sidebar-item-toggle):not(.pagination-link):not(.no-external):not([aria-hidden]):not(.dropdown-item):not(.quarto-navigation-tool):not(.about-link)');
+    for (var i=0; i<links.length; i++) {
+      const link = links[i];
+      if (!isInternal(link.href)) {
+        // undo the damage that might have been done by quarto-nav.js in the case of
+        // links that we want to consider external
+        if (link.dataset.originalHref !== undefined) {
+          link.href = link.dataset.originalHref;
+        }
+      }
+    }
+  function tippyHover(el, contentFn, onTriggerFn, onUntriggerFn) {
+    const config = {
+      allowHTML: true,
+      maxWidth: 500,
+      delay: 100,
+      arrow: false,
+      appendTo: function(el) {
+          return el.parentElement;
+      },
+      interactive: true,
+      interactiveBorder: 10,
+      theme: 'quarto',
+      placement: 'bottom-start',
+    };
+    if (contentFn) {
+      config.content = contentFn;
+    }
+    if (onTriggerFn) {
+      config.onTrigger = onTriggerFn;
+    }
+    if (onUntriggerFn) {
+      config.onUntrigger = onUntriggerFn;
+    }
+    window.tippy(el, config); 
+  }
+  const noterefs = window.document.querySelectorAll('a[role="doc-noteref"]');
+  for (var i=0; i<noterefs.length; i++) {
+    const ref = noterefs[i];
+    tippyHover(ref, function() {
+      // use id or data attribute instead here
+      let href = ref.getAttribute('data-footnote-href') || ref.getAttribute('href');
+      try { href = new URL(href).hash; } catch {}
+      const id = href.replace(/^#\/?/, "");
+      const note = window.document.getElementById(id);
+      if (note) {
+        return note.innerHTML;
+      } else {
+        return "";
+      }
+    });
+  }
+  const xrefs = window.document.querySelectorAll('a.quarto-xref');
+  const processXRef = (id, note) => {
+    // Strip column container classes
+    const stripColumnClz = (el) => {
+      el.classList.remove("page-full", "page-columns");
+      if (el.children) {
+        for (const child of el.children) {
+          stripColumnClz(child);
+        }
+      }
+    }
+    stripColumnClz(note)
+    if (id === null || id.startsWith('sec-')) {
+      // Special case sections, only their first couple elements
+      const container = document.createElement("div");
+      if (note.children && note.children.length > 2) {
+        container.appendChild(note.children[0].cloneNode(true));
+        for (let i = 1; i < note.children.length; i++) {
+          const child = note.children[i];
+          if (child.tagName === "P" && child.innerText === "") {
+            continue;
+          } else {
+            container.appendChild(child.cloneNode(true));
+            break;
+          }
+        }
+        if (window.Quarto?.typesetMath) {
+          window.Quarto.typesetMath(container);
+        }
+        return container.innerHTML
+      } else {
+        if (window.Quarto?.typesetMath) {
+          window.Quarto.typesetMath(note);
+        }
+        return note.innerHTML;
+      }
+    } else {
+      // Remove any anchor links if they are present
+      const anchorLink = note.querySelector('a.anchorjs-link');
+      if (anchorLink) {
+        anchorLink.remove();
+      }
+      if (window.Quarto?.typesetMath) {
+        window.Quarto.typesetMath(note);
+      }
+      if (note.classList.contains("callout")) {
+        return note.outerHTML;
+      } else {
+        return note.innerHTML;
+      }
+    }
+  }
+  for (var i=0; i<xrefs.length; i++) {
+    const xref = xrefs[i];
+    tippyHover(xref, undefined, function(instance) {
+      instance.disable();
+      let url = xref.getAttribute('href');
+      let hash = undefined; 
+      if (url.startsWith('#')) {
+        hash = url;
+      } else {
+        try { hash = new URL(url).hash; } catch {}
+      }
+      if (hash) {
+        const id = hash.replace(/^#\/?/, "");
+        const note = window.document.getElementById(id);
+        if (note !== null) {
+          try {
+            const html = processXRef(id, note.cloneNode(true));
+            instance.setContent(html);
+          } finally {
+            instance.enable();
+            instance.show();
+          }
+        } else {
+          // See if we can fetch this
+          fetch(url.split('#')[0])
+          .then(res => res.text())
+          .then(html => {
+            const parser = new DOMParser();
+            const htmlDoc = parser.parseFromString(html, "text/html");
+            const note = htmlDoc.getElementById(id);
+            if (note !== null) {
+              const html = processXRef(id, note);
+              instance.setContent(html);
+            } 
+          }).finally(() => {
+            instance.enable();
+            instance.show();
+          });
+        }
+      } else {
+        // See if we can fetch a full url (with no hash to target)
+        // This is a special case and we should probably do some content thinning / targeting
+        fetch(url)
+        .then(res => res.text())
+        .then(html => {
+          const parser = new DOMParser();
+          const htmlDoc = parser.parseFromString(html, "text/html");
+          const note = htmlDoc.querySelector('main.content');
+          if (note !== null) {
+            // This should only happen for chapter cross references
+            // (since there is no id in the URL)
+            // remove the first header
+            if (note.children.length > 0 && note.children[0].tagName === "HEADER") {
+              note.children[0].remove();
+            }
+            const html = processXRef(null, note);
+            instance.setContent(html);
+          } 
+        }).finally(() => {
+          instance.enable();
+          instance.show();
+        });
+      }
+    }, function(instance) {
+    });
+  }
+      let selectedAnnoteEl;
+      const selectorForAnnotation = ( cell, annotation) => {
+        let cellAttr = 'data-code-cell="' + cell + '"';
+        let lineAttr = 'data-code-annotation="' +  annotation + '"';
+        const selector = 'span[' + cellAttr + '][' + lineAttr + ']';
+        return selector;
+      }
+      const selectCodeLines = (annoteEl) => {
+        const doc = window.document;
+        const targetCell = annoteEl.getAttribute("data-target-cell");
+        const targetAnnotation = annoteEl.getAttribute("data-target-annotation");
+        const annoteSpan = window.document.querySelector(selectorForAnnotation(targetCell, targetAnnotation));
+        const lines = annoteSpan.getAttribute("data-code-lines").split(",");
+        const lineIds = lines.map((line) => {
+          return targetCell + "-" + line;
+        })
+        let top = null;
+        let height = null;
+        let parent = null;
+        if (lineIds.length > 0) {
+            //compute the position of the single el (top and bottom and make a div)
+            const el = window.document.getElementById(lineIds[0]);
+            top = el.offsetTop;
+            height = el.offsetHeight;
+            parent = el.parentElement.parentElement;
+          if (lineIds.length > 1) {
+            const lastEl = window.document.getElementById(lineIds[lineIds.length - 1]);
+            const bottom = lastEl.offsetTop + lastEl.offsetHeight;
+            height = bottom - top;
+          }
+          if (top !== null && height !== null && parent !== null) {
+            // cook up a div (if necessary) and position it 
+            let div = window.document.getElementById("code-annotation-line-highlight");
+            if (div === null) {
+              div = window.document.createElement("div");
+              div.setAttribute("id", "code-annotation-line-highlight");
+              div.style.position = 'absolute';
+              parent.appendChild(div);
+            }
+            div.style.top = top - 2 + "px";
+            div.style.height = height + 4 + "px";
+            div.style.left = 0;
+            let gutterDiv = window.document.getElementById("code-annotation-line-highlight-gutter");
+            if (gutterDiv === null) {
+              gutterDiv = window.document.createElement("div");
+              gutterDiv.setAttribute("id", "code-annotation-line-highlight-gutter");
+              gutterDiv.style.position = 'absolute';
+              const codeCell = window.document.getElementById(targetCell);
+              const gutter = codeCell.querySelector('.code-annotation-gutter');
+              gutter.appendChild(gutterDiv);
+            }
+            gutterDiv.style.top = top - 2 + "px";
+            gutterDiv.style.height = height + 4 + "px";
+          }
+          selectedAnnoteEl = annoteEl;
+        }
+      };
+      const unselectCodeLines = () => {
+        const elementsIds = ["code-annotation-line-highlight", "code-annotation-line-highlight-gutter"];
+        elementsIds.forEach((elId) => {
+          const div = window.document.getElementById(elId);
+          if (div) {
+            div.remove();
+          }
+        });
+        selectedAnnoteEl = undefined;
+      };
+        // Handle positioning of the toggle
+    window.addEventListener(
+      "resize",
+      throttle(() => {
+        elRect = undefined;
+        if (selectedAnnoteEl) {
+          selectCodeLines(selectedAnnoteEl);
+        }
+      }, 10)
+    );
+    function throttle(fn, ms) {
+    let throttle = false;
+    let timer;
+      return (...args) => {
+        if(!throttle) { // first call gets through
+            fn.apply(this, args);
+            throttle = true;
+        } else { // all the others get throttled
+            if(timer) clearTimeout(timer); // cancel #2
+            timer = setTimeout(() => {
+              fn.apply(this, args);
+              timer = throttle = false;
+            }, ms);
+        }
+      };
+    }
+      // Attach click handler to the DT
+      const annoteDls = window.document.querySelectorAll('dt[data-target-cell]');
+      for (const annoteDlNode of annoteDls) {
+        annoteDlNode.addEventListener('click', (event) => {
+          const clickedEl = event.target;
+          if (clickedEl !== selectedAnnoteEl) {
+            unselectCodeLines();
+            const activeEl = window.document.querySelector('dt[data-target-cell].code-annotation-active');
+            if (activeEl) {
+              activeEl.classList.remove('code-annotation-active');
+            }
+            selectCodeLines(clickedEl);
+            clickedEl.classList.add('code-annotation-active');
+          } else {
+            // Unselect the line
+            unselectCodeLines();
+            clickedEl.classList.remove('code-annotation-active');
+          }
+        });
+      }
+  const findCites = (el) => {
+    const parentEl = el.parentElement;
+    if (parentEl) {
+      const cites = parentEl.dataset.cites;
+      if (cites) {
+        return {
+          el,
+          cites: cites.split(' ')
+        };
+      } else {
+        return findCites(el.parentElement)
+      }
+    } else {
+      return undefined;
+    }
+  };
+  var bibliorefs = window.document.querySelectorAll('a[role="doc-biblioref"]');
+  for (var i=0; i<bibliorefs.length; i++) {
+    const ref = bibliorefs[i];
+    const citeInfo = findCites(ref);
+    if (citeInfo) {
+      tippyHover(citeInfo.el, function() {
+        var popup = window.document.createElement('div');
+        citeInfo.cites.forEach(function(cite) {
+          var citeDiv = window.document.createElement('div');
+          citeDiv.classList.add('hanging-indent');
+          citeDiv.classList.add('csl-entry');
+          var biblioDiv = window.document.getElementById('ref-' + cite);
+          if (biblioDiv) {
+            citeDiv.innerHTML = biblioDiv.innerHTML;
+          }
+          popup.appendChild(citeDiv);
+        });
+        return popup.innerHTML;
+      });
+    }
+  }
+});
+</script>
+</div> <!-- /content -->
+
+
+
+
+</body></html>

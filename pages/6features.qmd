@@ -1,0 +1,390 @@
+---
+title: "Selecting features"
+format: 
+    html:
+        toc: true
+        number-sections: true
+        colorlinks: true
+        code-line-numbers: true
+        fig-cap-location: top
+        number-offset: 2
+        comments:
+            hypothesis: true
+execute:
+    echo: false
+    warning: false
+    error: false
+    message: false
+---
+
+
+
+```{r}
+#| label: setup
+#| echo: false
+library(knitr)
+knitr::opts_chunk$set(fig.align="center", size="footnotesize", dev = "png", dev.args = list(type = "cairo-png"))
+knitr::knit_hooks$set(crop = knitr::hook_pdfcrop)
+
+library(tidyverse)
+library(terra)
+library(tidyterra)
+library(cowplot)
+library(povmap)
+library(glmnet)
+library(haven)
+library(fixest)
+library(kableExtra)
+library(moments)
+
+Sys.setenv("RETICULATE_PYTHON" = "/Users/Josh/Dropbox/Papers/UN-SAE/geospatialSAEhowto/howto-venv/bin/python")
+library(reticulate)
+use_virtualenv("/Users/Josh/Dropbox/Papers/UN-SAE/geospatialSAEhowto/howto-venv", required=TRUE)
+
+unblue <- "#5b92e5"
+
+mw3 <- vect("data/mw3.shp")
+mw4 <- vect("data/mw4.shp")
+```
+
+
+
+
+# Creating and selecting features {#sec-features}
+
+Once we have all of the geospatial features, we now need to think about choosing which features we want to use in our model and whether we want to use our raw features to create new indicators. Choosing features is particularly important with geospatial data due to the sheer number of features we can create. We have already created a number of features, but we can also create new features, transform existing features, and use lasso to select features. We will discuss each of these in turn. In this section, we will be using the final, cleaned version of features in the `data/geovarseas.csv` file.
+
+
+
+## Creating new features e.g. admin means {#sec-newfeatures}
+
+We will be estimating models at the admin-4 level. However, this does not mean that all of our predictors must necessarily be at the admin-4 level. For example, we can create means or standard deviations at higher levels (e.g. admin 3). We can also create lagged means or standard deviations at the admin 4 level, as well as interactions between different features. 
+
+As a simple example, consider creating total population at the admin-3 level, in addition to the admin-4 level. Let's first load the features into `R` and do a bit more cleaning:
+
+\small
+```{r}
+#| echo: true
+#| eval: true
+# load features
+features <- read_csv("data/geovarseas.csv")
+# the population column is mwpop
+head(features)
+```
+\normalsize
+
+Let's now create one more variable, which is total population at the admin-3 level:
+
+\small
+```{r}
+#| echo: true
+#| eval: true
+# create TOTAL pop at admin3 level:
+features <- features |>
+  group_by(TA_CODE) |>
+  mutate(popTA = sum(mwpop, na.rm = TRUE)) |>
+  ungroup()
+```
+\normalsize
+
+Here, we take advantage of the `tidyverse`'s `group_by()` and `mutate()` functions to aggregate total population up to the admin-3 level, but keeping the dataset itself at the admin-4 level.
+
+As another example, let's consider NDVI, which is a measure of vegetation ("greenness"). In countries like Malawi, NDVI can be highly predictive of poverty due to its correlation with the agricultural harvest. However, at the same time, the exact timing of NDVI measures can be very important for capturing this relationship, due to the seasonality inherent in rain-fed agricultural production. In practice, we often pull historical NDVI and then include things like long-term mean, long-term max, long-term min, and even long-term standard deviation, in addition to current values. 
+
+In our simple example, we downloaded 12 separate NDVI files^[This is the for loop at the end of the `geospatialpull.ipynb` notebook.] and we can use these to calculate things like min/mean/sd of NDVI throughout the year. In the `features` object, the NDVI columns are named `ndviM`, where `M` is an integer from 1 to 12, indicating the month of the year.
+
+Let's create some new values, such as the *annual* mean, max, min, and standard deviation:
+
+\small
+```{r}
+#| echo: true
+#| eval: true
+# Let's first find the columns we want!
+ndvicols <- grep("ndvi", names(features))      # <1>
+features$ndvimean <- apply(features[,ndvicols], 1, mean, na.rm = TRUE)      # <2>
+features$ndvistd <- apply(features[,ndvicols], 1, sd, na.rm = TRUE)      
+features$ndvimax <- apply(features[,ndvicols], 1, max, na.rm = TRUE)      
+features$ndvimin <- apply(features[,ndvicols], 1, min, na.rm = TRUE)   
+head(features[,c("ndvimean", "ndvistd", "ndvimax", "ndvimin")])       # <3>
+```
+\normalsize
+
+Here, we take advantage of a new function we have not used before: `apply()`. The `apply()` function is very useful. In this case, we are going to "apply" a single function to different columns of `ndviextracted`. Let's go through each row in the above code:
+
+1. This row does something slightly more advanced. We want to find the location of the columns that contain the string "ndvi" in the column names. We can do this using `grep()`, which returns the *index* of the columns that contain the string "ndvi". We can then use this index to find the columns we want.
+2. `ndvimean`: We are going to take the mean of the NDVI values for each *row*, which is what the `1` represents in the function call (if we wanted to apply it *down* columns, we would use a `2` instead). We use `apply()` to apply the `mean()` function to each row, excluding missing values. The next three rows do something similar, just calling a different function instead of the `mean`.
+3. Here we are looking at the first few rows of `df`, but *only* for the new columns we just created.
+
+
+
+## Thinking about transformations {#sec-transformations}
+
+In addition to creating new variables through aggregation to a higher level of geography or combining data over time, we can also transform both our (potential) predictor variables and our outcome variable, through, for example, log transformations. Why might we want to transform our variables? There are two primary reasons:
+
+1. Improve the predictive ability of the model. For example, a log transformation can sometimes make the relationship between a predictor and the outcome more linear, which is particularly important for linear models (which are the workhorse of SAE).
+2. Improve the properties of the residuals. In SAE, we often use a parametric bootstrap for point estimation and inference. In our case, we make two key assumptions: the residual is normally distributed and the random effects are normally distributed. Transforming the outcome variable, in particular, can sometimes make the residuals more normal, which can improve the properties of the bootstrap.
+
+Let's start with the outcome: poverty rates at the admin-4 level. Before diving into this, it is important to clarify that the assumptions we make in our SAE model are not about the distribution of the outcome itself, but rather about the *residuals* and random effects. Nonetheless, outcomes that are more "normally" distributed do tend to have better properties in terms of estimation.
+
+```{r}
+#| label: fig-poptrans
+#| fig-cap: Poverty rates in Northern Malawi
+#| echo: false
+#| eval: true
+#| fig-align: center
+
+pov <- read_csv("data/ihs5ea.csv")
+# not we join pov INTO features. This means we have all admin 4 areas, with or without sample data
+pov <- features |>
+  left_join(pov, by = "EA_CODE")
+g1 <- ggplot(data = pov) + 
+  geom_density(aes(x = poor)) +
+  labs(x = "Poverty (levels)", y = "Density", subtitle = "A. Untransformed") +
+  theme_bw(base_size = 8)
+g2 <- ggplot(data = pov) + 
+  geom_density(aes(x = asin(sqrt(poor)))) +
+  labs(x = "Poverty (transformed)", y = "Density", subtitle = "B. Arcsin (square root) transformed") +
+  theme_bw(base_size = 8)
+plot_grid(g1, g2, nrow = 1)
+
+```
+
+In the above figure, we show the density of poverty rates in Northern Malawi. The left panel shows the untransformed poverty rates, while the right panel shows the poverty rates after an arcsin (square root) transformation.^[The arcsin square root transformation is defined as $y^*=\sin^{-1}(\sqrt{y})$.] We have found that this transformation performs particularly well when the outcome is a proportion, as it is in this case (it varies between 0 and 1). It is quite clear from the figure that the transformed outcome is more "normal" than the untransformed outcome. However, since we are really interested in the residuals, we discuss model diagnostics more below, where we also look at statistics for skewness and kurtosis of the residuals and random effects.
+
+
+But since we are really interested in the residual, we can look at how a transformation might affect the predictive power of the model. To do this, we will use the `feols()` function from the package `fixest`.^[You can also use the `lm()` function from base `R`. However, we prefer the `feols()` function because it makes some things much easier, like adding weights.]
+
+Before we do this, however, we need to recode some of the key predictors: land cover classifications. Right now, the land cover classification values are not true proportions! They are counts of pixels of different land classifications within each EA. We need to turn these into proportions. We can do this by dividing by the total number of pixels in each EA. Let's do this:
+
+\small
+```{r}
+#| echo: true
+#| eval: true
+
+# find columns we want
+landcols <- grep("coverfraction", names(features))
+# how many total pixels?
+features$totalpixels <- apply(features[,landcols], 1, sum, na.rm = TRUE)
+# go through each one and replace with proportion:
+for (i in landcols){
+  features[,i] <- features[,i]/features$totalpixels
+}
+# remove total pixels
+features <- features |>
+  select(-totalpixels)
+summary(features[,landcols])
+
+```
+\normalsize
+
+
+The above output also provides some additional context for selecting the variables for our SAE models. In our SAE application below, we will be estimating a model using maximum likelihood estimation. In such cases, we can sometimes experience convergence issues, especially when some predictors have very little variation, In this example, several of the land cover classification variables have no variation -- so they will not be selected at all in the lasso application we discuss below -- but others show very little variation. Let's remove all columns that have very little variation:
+
+
+\small
+```{r}
+#| echo: true
+#| eval: true
+
+features <- features |>
+  select(-c("mosscoverfraction", "waterpermanentcoverfraction", 
+    "waterseasonalcoverfraction", "snowcoverfraction"))
+
+```
+\normalsize
+
+Let's consider the three regressions, with poverty on the left-hand side and two separate predictors, `cropscoverfraction` and `mwpop`, on the right-hand side. We estimate three separate (simple) regressions with different transformations. In column one, all variables -- including the outcome -- are not transformed. In column two, we transform the outcome only, leaving both of the predictors untransformed. In column three, we transform both the outcome and the predictors, using the arcsin transformation for crop cover and the log transformation for population. The results are in @tbl-povtrans.
+
+```{r}
+#| label: regs-povtrans
+#| echo: true
+#| eval: true
+#| fig-align: center
+# new data
+pov <- read_csv("data/ihs5ea.csv")
+# not we join pov INTO features. This means we have all admin 4 areas, with or without sample data
+pov <- features |>
+  left_join(pov, by = "EA_CODE") |>
+  mutate(mwpop = mwpop/1000)
+
+reg1 <- feols(poor ~ cropscoverfraction + mwpop, data = pov, weights = ~total_weights, vcov = "HC1")
+reg2 <- feols(asin(sqrt(poor)) ~ cropscoverfraction + mwpop, data = pov, weights = ~total_weights, vcov = "HC1")
+reg3 <- feols(asin(sqrt(poor)) ~ asin(sqrt(cropscoverfraction)) + log(mwpop), data = pov, weights = ~total_weights, vcov = "HC1")
+```
+
+```{r}
+#| label: tbl-povtrans
+#| tbl-cap: "Variable transformations"
+#| echo: false
+#| eval: true
+#| fig-align: center
+table <- etable(reg1, reg2, reg3,
+  signif.code = NA, se.below = TRUE, depvar = FALSE,
+  digits = 4, digits.stats = 3)
+table <- rbind(table[3:10,], table[1:2,], table[13:14,])
+table[c(1, 3, 5, 7),1] <- c("Crops cover (levels)", "Population (levels, '000s)", "Crops cover (arcsin)", "Population (log)")
+table[nrow(table), 1] <- "R$^2$"
+colnames(table) <- c("", "Poor", "Poor", "Poor")
+
+table <- kable(table, format = "latex", digits = 3,
+    booktabs = TRUE, row.names = FALSE, escape = FALSE, align = "lcccc") |>
+  add_header_above(header = c(" " = 2, "Transformed" = 2)) |>
+  column_spec(column = 1, width = "5cm") |>
+  column_spec(column = 2, width = "3cm") |>
+  row_spec(row = nrow(table)-2, hline_after = TRUE) |>
+  footnote("\\\\footnotesize{Note: The table shows the results from regressions of poverty on the listed variables. In column one, the outcome variable (poverty) is not transformed. In columns two and three, the outcome variable is transformed using the arcsin (square root) transformation. For the predictors, the transformations are arcsin and log for crop cover and population, respectively. Heteroskedasticity-robust standard errors are in parentheses.}",
+    general_title = "",
+    threeparttable = TRUE,
+    footnote_as_chunk = TRUE,
+    escape = FALSE
+    ) |>
+  kable_classic_2()
+# replace \item with nothing
+table <- gsub("\\\\item", "", table)
+table <- gsub("\\\\addlinespace", "", table)
+table
+```
+
+Transforming just the outcome improves the fit, at least as measured by r-squared, by around `r round((0.104/0.097 - 1)*100, 1)` percent. All of the transformations, however, increase the predictive power of the regression by `r round((0.124/0.097 - 1)*100, 1)` percent. In other words, the transformations of just these two variables, along with the outcome, can lead to a substantial improvement in the model.^[We note that we only show these results for illustrative purposes. In practice, we do not use r-squared as a measure of model fit, especially when only looking within the sample.]
+
+
+
+
+## lasso and `glmnet` {#sec-lasso}
+
+In the above sections, we have shown how transforming our predictor and outcome variables can improve the fit of a model. However, we have not yet discussed how to choose which features to actually include in the model. Including all potential predictors has two primary problems:
+
+1. First, we often have more predictors than observations. In this case, it is impossible to estimate the model.
+2. Even if we have more observations than predictors, including all predictors can lead to overfitting. In essence, our model can end up predicting noise in the data, rather than true underlying relationships. This will lead to very poor performance, especially when predicting into out-of-sample data.
+
+There are many ways to select predictors, but the most commonly used method is "lasso".^[Lasso stands for "least absolute shrinkage and selection operator," but it is often simply refered to by its acronym.] Lasso is a regression method that "penalizes" coefficients. To put it simply, it will shrink coefficients to zero if they do not meaningfully improve the performance of the model. In practice, this approximately equalizes in-sample and out-of-sample r-squared.
+
+In its simplest form, lasso is a linear regression model with an additional penalty term. We minimize the following objective function with respect to $\beta$:
+
+$$ (y-X\beta)^2 + \lambda \sum_{j=1}^p |\beta_j|, $$
+
+where $\lambda$ is a tuning parameter that determines the size of the "penalty" and $(y-X\beta)^2$ is the usual ordinary least squares minimiazation problem. Importantly, the penalty term can in principle take on any (non-negative) value. When $\lambda=0$, lasso is just a linear regression. As $\lambda$ increases, fewer and fewer variables will be selected (i.e. will have non-zero coefficients). So what is the "correct" value for $\lambda$? In practice, we often select $\lambda$ using cross validation.
+
+
+![Cross validation set up](assets/CVdiagram.png){#fig-cv fig-align="center"}
+
+Cross validation is a process that is designed to mimic out-of-sample estimation. Consider the setup in @fig-cv. We first take the sample data and randomize it into N $folds$; the most common number of folds is 10, but the diagram shows five for simplicity. Since we are trying to mimic out-of-sample performance, we estimate a model on $N-1$ folds and then predict on the remaining fold. We then calculate the mean squared error (MSE) of the prediction. We repeat this process N times, each time leaving out a different fold. We can then find the mean MSE across all of the folds. We can repeat this process many times, for different values of $\lambda$. The final ("optimal") value of $\lambda$ is the one that minimizes the mean MSE across folds. 
+
+Thankfully, we do not need to do all of this by hand. Instead, we can use the `cv.glmnet()` function from the `glmnet` package. This function will automatically assign observations to folds and calculate MSE for different values of $\lambda$. To do this, `glmnet` needs to be installed, which can be done using the `install.packages("glmnet")` function, and then loading the library with `library(glmnet)`.
+
+The following code illustrates this process using already cleaned data. The cleaned features are in the `geovars.csv` data and the outcome is in the `ihs5ea.csv` data. Both datasets are again from Northern Malawi and are already collapsed to the admin4 (EA) level. First, load both datasets:
+
+\small
+```{r}
+#| echo: true
+#| eval: true
+# load poverty
+pov <- read_csv("data/ihs5ea.csv")
+# load features
+features <- read_csv("data/geovarseas.csv")
+# add features to pov
+pov <- pov |>
+  left_join(features, by = "EA_CODE")
+head(pov)
+```
+\normalsize
+
+We need to ensure we know which column includes the outcome of interest (in this case, `poor`) and which columns include all of the predictors. The data `geovarseas.csv` data has been cleaned such that there are only two non-predictors: the admin4 identifier (`EA_CODE`) and the admin3 identifier (`TA_CODE`). This means that all columns from `mwpop` to `ncol(pov)` are the predictors. We should be very specific about what `Y` and `X` are in this case, before using `cv.glmnet`.^[A small note: the outcome needs to be a vector and the predictors need to be in the form of a matrix. Both of these requirements are specified in the code.] In addition, recall that we discussed using a transformation of the outcome variable, specifically. Let's also do that here:
+
+\small
+```{r}
+#| echo: true
+#| eval: true
+Y <- as.vector(asin(sqrt(pov$poor)))
+# column 6 is the location of mwpop
+X <- as.matrix(pov[,7:ncol(pov)])
+# here is the cross validation to select lambda
+set.seed(234056) # set seed for consistent results!
+# five folds to keep with the simple example
+cvresults <- cv.glmnet(x = X, y = Y, nfolds = 5)
+cvresults
+```
+\normalsize
+
+The `cvresults` object contains information about two different options for $\lambda$: the value of $\lambda$ that minimizes MSE (`lambda.min`) and the value of $\lambda$ that is a bit larger (`lambda.1se`), meaning it is more conservative and will usually lead to fewer non-zero coefficients. In this example, the number of non-zero coefficients is either `r cvresults$nzero[cvresults$lambda==cvresults$lambda.min]` or `r cvresults$nzero[cvresults$lambda==cvresults$lambda.1se]`, depending on which $\lambda$ we choose.^[Note that we need to set a seed if we want consistent results when re-running the cross validation. This is because cross validation relies on some degree of randomness (in the allocation across folds).] We can use the `plot()` function to see the results, with the results in @fig-cvresults (the dotted lines represent the two "optimal" values of $\lambda$).
+
+\small
+```{r}
+#| echo: true
+#| eval: false
+plot(cvresults)
+```
+\normalsize
+
+```{r}
+#| echo: false
+#| eval: true
+#| label: fig-cvresults
+#| fig-cap: CV results
+#| fig-align: center
+p <- as_tibble(cbind(lambda = cvresults$lambda, nzero = cvresults$nzero, mse = cvresults$cvm, cvlo = cvresults$cvlo, cvup = cvresults$cvup))
+plabs <- cvresults$nzero[length(cvresults$nzero):1]
+ggplot(p) +
+  geom_errorbar(aes(x = log(lambda), ymin = cvlo, ymax = cvup), color = "gray") +
+  geom_point(aes(x = log(lambda), y = mse), color = "red") +
+  geom_vline(aes(xintercept = log(cvresults$lambda.min)), color = "black", linetype = "dotted") +
+  geom_vline(aes(xintercept = log(cvresults$lambda.1se)), color = "black", linetype = "dotted") +
+  labs(x = expression("log("*lambda*")"), y = "Mean-Squared Error", color = "Legend") +
+  scale_x_continuous(sec.axis = sec_axis(~ ., labels = p$nzero[seq(from = 1, to = length(p$nzero), by = 3)], breaks = log(p$lambda[seq(from = 1, to = length(p$nzero), by = 3)]))) +
+  theme_bw(base_size = 8)
+```
+
+The next step is the most important: extracting the variables that have non-zero coefficients. While seeing the coefficients is straightforward, extracting the names of the variables is unfortunately more difficult than it probably should be. 
+
+To simply view the coefficients, we can use the `coef()` function, as shown below. Note that the code uses `head()` to keep the size of the R output to a managable size for this guide:^[The two non-negative variables visible in the output are nightlights (`average_masked`) and the proportion of the area that is bare ( `barecoverfraction`). Both coefficients are in the expected direction.]
+
+\small
+```{r}
+#| echo: true
+#| eval: true
+head(coef(cvresults))
+```
+\normalsize
+
+The coefficients showing a `.` have zero value. We can use this fact to extract the names of the variables with non-zero coefficients. We can see this if we turn the `coef()` result into a matrix:^[Again, `head()` is used to limit the output to the first few variables for practical purposes.]
+
+\small
+```{r}
+#| echo: true
+#| eval: true
+head(as.matrix(coef(cvresults)))
+```
+\normalsize
+
+After turning the results into a matrix, we can see that the `.` coefficients become zeros. With this in mind, we can finally extract the names of the non-zero coefficients, as follows:
+
+\small
+```{r}
+#| echo: true
+#| eval: true
+# we can specify the lambda we want to use; "lambda.min" or "lambda.1se"
+nonzero <- as.matrix(coef(cvresults, "lambda.min"))
+nonzero <- rownames(nonzero)[nonzero[,1]!=0]
+nonzero
+# now remove the intercept (since this is automatically added)
+nonzero <- nonzero[-1]
+nonzero
+```
+\normalsize
+
+In this example, we have three non-zero coefficients, but we want to remove the intercept, which is always the first coefficient. We remove the intercept because it will automatically be added by the SAE function that we use later. This is done with the `nonzero <- nonzero[-1]` line of code above.
+
+The final step is to turn this into a *formula*, of the form $outcome ~ x_1 + \cdots + x_n$, where $x_1, \ldots, x_n$ are the non-zero coefficients. We can do this with the `paste()` function and the `collapse` option, as follows:
+
+\small
+```{r}
+#| echo: true
+#| eval: true
+ebpformula <- as.formula(paste("poor ~ ", paste(nonzero, collapse = " + ")))
+ebpformula
+```
+\normalsize
+
+The `collapse = " + "` option tells `paste()` to separate the variables with a `+` sign. Finally, we have to explicitly tell `R` that this is a formula, which we do using `as.formula()`. This is the formula we will use below in section @sec-estimating.
+
+ 
