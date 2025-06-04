@@ -8,6 +8,8 @@ SAE has been undergoing active development for several decades ([Ghosh, 2020](#1
 
 For more information on different SAE methods and their implementation for official statistics, you can explore the SAE4SDGs wiki available here: https://unstats.un.org/wiki/spaces/SAE4SDG/overview 
 
+NOTE: You can access an interactive HTML version of this guide [here.](https://escap-sd.github.io/geospatialSAEhowto/)
+
 ## Small area estimation with geospatial data
 
 Traditionally, SAE has relied on unit-level census data or high-quality administrative data that covers the entire population of interest, not just the surveyed areas. When available, such data can be highly predictive of many outcomes of interest, including poverty, unemployment, and other SDGs. However, a key problem many countries face is that they either do not have access to such data or it is out of date. This raises an important question: if we do not have access to administrative data, what data can we use that is: 
