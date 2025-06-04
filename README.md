@@ -4,7 +4,7 @@
 
 Small area estimation (SAE) refers to a set of statistical methods that enable statisticians to create estimates for outcomes of interest at levels of aggregation when sample sizes are too small to generate reliable direct estimates. “Small area” typically refers to administrative or other geographic areas. However, it can also refer to subpopulations for which sample sizes are too small for reliable parameter estimation. 
 
-SAE has been undergoing active development for several decades ([Ghosh, 2020](#1)), with several books written on the topic (the book by [Molina and Rao (2015)](#2) is a particularly good starting point). While there are many different implementations of SAE, all methods have a similar intuition. In all cases, the basic idea is to “augment” survey data using auxiliary data that is predictive of the outcome.
+SAE has been undergoing active development for several decades ([Ghosh, 2020](#1)), with several books written on the topic (the book by [Rao and Molina (2015)](#2) is a particularly good starting point). While there are many different implementations of SAE, all methods have a similar intuition. In all cases, the basic idea is to “augment” survey data using auxiliary data that is predictive of the outcome.
 
 For more information on different SAE methods and their implementation for official statistics, you can explore the SAE4SDGs wiki available here: https://unstats.un.org/wiki/spaces/SAE4SDG/overview 
 
@@ -51,4 +51,4 @@ You can find all of the code and data used on the GitHub repository for this gui
 
 <a id="1"></a> Ghosh, Malay. 2020. “Small area estimation: Its evolution in five decades.” Statistics in Transition. New Series 21 (4): 1–22.
 
-<a id="2"></a> Molina, Isabel, and Jon NK Rao. 2010. “Small Area Estimation of Poverty Indicators.” Canadian Journal of Statistics 38 (3): 369–85.
+<a id="2"></a> Rao, John NK, and Isabel Molina. 2015. Small Area Estimation. John Wiley & Sons.
