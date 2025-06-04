@@ -1,3 +1,21 @@
+---
+title: "Geospatial small area estimation in R"
+author: 
+    - name: Haoyi Chen
+      affiliations:
+        - name: UNSD
+    - name: Josh Merfeld
+      affiliations:
+        - name: University of Queensland and IZA
+    - name: David Newhouse
+      affiliations:
+        - name: World Bank and IZA
+    - name: Richard Pearce Tonkin
+      affiliations:
+        - name: UN ESCAP
+---
+
+
 <img src="assets/escap.png" alt="drawing" width="200"/>
 
 # A guide to small area estimation with geospatial data in R
