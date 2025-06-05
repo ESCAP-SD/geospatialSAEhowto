@@ -12,6 +12,8 @@ Richard Pearce Tonkin (UN ESCAP) <br>
 
 <img src="assets/escap.png" alt="drawing" width="200"/>
 
+<img src="assets/wblogo.png" alt="drawing" width="200"/>
+
 
 
 Small area estimation (SAE) refers to a set of statistical methods that enable statisticians to create estimates for outcomes of interest at levels of aggregation when sample sizes are too small to generate reliable direct estimates. “Small area” typically refers to administrative or other geographic areas. However, it can also refer to subpopulations for which sample sizes are too small for reliable parameter estimation. 
