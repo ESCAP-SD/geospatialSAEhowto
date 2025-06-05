@@ -6,7 +6,7 @@ Authors: <br>
 Haoyi Chen (UNSD) <br>
 Josh Merfeld (University of Queensland and IZA) <br>
 David Newhouse (World Bank and IZA) <br>
-Richard Pearce Tonkin (UN ESCAP) <br>
+Richard Pearce Tonkin (ESCAP) <br>
 
 
 
@@ -18,11 +18,11 @@ Richard Pearce Tonkin (UN ESCAP) <br>
 
 Small area estimation (SAE) refers to a set of statistical methods that enable statisticians to create estimates for outcomes of interest at levels of aggregation when sample sizes are too small to generate reliable direct estimates. “Small area” typically refers to administrative or other geographic areas. However, it can also refer to subpopulations for which sample sizes are too small for reliable parameter estimation. 
 
-SAE has been undergoing active development for several decades ([Ghosh, 2020](#1)), with several books written on the topic (the book by [Rao and Molina (2015)](#2) is a particularly good starting point). While there are many different implementations of SAE, all methods have a similar intuition. In all cases, the basic idea is to “augment” survey data using auxiliary data that is predictive of the outcome.
+SAE has been undergoing active development for several decades ([Ghosh, 2020](#1)), with several books written on the topic (the book by [Rao and Molina (2015)](#2) is a particularly good starting point). While there are many different implementations of SAE, all methods have a similar intuition. In all cases, the basic idea is to “augment” survey data using auxiliary data that is predictive of the outcome[^1].
 
-For more information on different SAE methods and their implementation for official statistics, you can explore the SAE4SDGs wiki available here: https://unstats.un.org/wiki/spaces/SAE4SDG/overview 
+This guide provides an [interactive how-to on the use of geospatial data for SAE](https://escap-sd.github.io/geospatialSAEhowto/). Its development was supported by ESCAP’s project on Big Data for Official Statistics, funded by the 2030 Agenda Sub-Fund of the UN Peace and Development Trust Fund. 
 
-NOTE: You can access an interactive HTML version of this guide [here.](https://escap-sd.github.io/geospatialSAEhowto/)
+[^1]:For further information on different SAE methods and their implementation for official statistics, you can explore the SAE4SDGs wiki available here: https://unstats.un.org/wiki/spaces/SAE4SDG/overview 
 
 ## Small area estimation with geospatial data
 
@@ -50,7 +50,9 @@ The guide is designed to complement the Primer mentioned above by focusing on th
 
 Readers are encouraged to copy and run the code to run on their own computer while following the guide. To facilitate this, an [interactive HTML version of this guide](https://escap-sd.github.io/geospatialSAEhowto/) is available. On the interactive version, you can click to copy code chunks and then insert them directly into your R console or script.
 
-Throughout this guide, we will be using data from Northern Malawi. The survey data come from the [Fifth Integrated Household Survey (IHS5)](https://microdata.worldbank.org/index.php/catalog/3818), which is only considered representative at the district (admin 2) level. Our final goal will be to estimate poverty at the admin 3 level for Northern Malawi, which is not possible with the raw survey data – many admin 3 areas have no survey observations at all and those that do tend to have a small sample size.
+Throughout this guide, we will be using data from Northern Malawi[^2]. The survey data come from the [Fifth Integrated Household Survey (IHS5)](https://microdata.worldbank.org/index.php/catalog/3818), which is only considered representative at the district (admin 2) level. Our final goal will be to estimate poverty at the admin 3 level for Northern Malawi, which is not possible with the raw survey data – many admin 3 areas have no survey observations at all and those that do tend to have a small sample size.
+
+[^2]:Throughout this guide, we sometimes use maps to visualize both geospatial data and outcomes. The boundaries and names shown and the designations used on these maps do not imply official endorsement or acceptance by the United Nations
 
 While the guide uses example data for Malawi, the approach and code can be adapted to other countries and contexts. The examples assume a basic understanding of R, but the code is fully annotated for users to modify and build upon.
 
