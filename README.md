@@ -15,7 +15,7 @@ Small area estimation (SAE) refers to a set of statistical methods that enable s
 
 SAE has been undergoing active development for several decades ([Ghosh, 2020](#1)), with several books written on the topic (the book by [Rao and Molina (2015)](#2) is a particularly good starting point). While there are many different implementations of SAE, all methods have a similar intuition. In all cases, the basic idea is to “augment” survey data using auxiliary data that is predictive of the outcome[^1].
 
-This guide provides an [interactive how-to on the use of geospatial data for SAE](https://escap-sd.github.io/geospatialSAEhowto/). Its development was supported by ESCAP’s project on Big Data for Official Statistics, funded by the 2030 Agenda Sub-Fund of the UN Peace and Development Trust Fund. 
+This guide provides an [interactive how-to on the use of geospatial data for SAE](https://escap-sd.github.io/geospatialSAEhowto/). Its development was supported by ESCAP’s project on Big Data for Official Statistics, funded by the 2030 Agenda Sub-Fund of the UN Peace and Development Trust Fund, as well as the project on Resilient and Agile Statistical Systems under the 14th tranche of the UN Development Account. 
 
 [^1]:For further information on different SAE methods and their implementation for official statistics, you can explore the SAE4SDGs wiki available here: https://unstats.un.org/wiki/spaces/SAE4SDG/overview 
 
