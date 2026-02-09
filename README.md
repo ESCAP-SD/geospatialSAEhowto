@@ -17,6 +17,12 @@ SAE has been undergoing active development for several decades ([Ghosh, 2020](#1
 
 This guide provides an [interactive how-to on the use of geospatial data for SAE](https://escap-sd.github.io/geospatialSAEhowto/). Its development was supported by ESCAP’s project on Big Data for Official Statistics, funded by the 2030 Agenda Sub-Fund of the UN Peace and Development Trust Fund, as well as the project on [Resilient and Agile Statistical Systems](https://unstats.un.org/UNSDWebsite/capacity-development/da14/) under the 14th tranche of the UN Development Account. 
 
+A short walkthrough video introducing the guide and explaining its structure is available below:
+
+<a href="https://escap-sd.github.io/geospatialSAEhowto/#about-this-guide">
+  <img src="docs/assets/sae-video-poster.jpg" width="600">
+</a>
+
 [^1]:For further information on different SAE methods and their implementation for official statistics, you can explore the SAE4SDGs wiki available here: https://unstats.un.org/wiki/spaces/SAE4SDG/overview 
 
 ## Small area estimation with geospatial data
