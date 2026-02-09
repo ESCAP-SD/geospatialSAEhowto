@@ -275,6 +275,15 @@ ul.task-list li input[type="checkbox"] {
 <section id="about-this-guide" class="level2" data-number="1.2">
 <h2 data-number="1.2" class="anchored" data-anchor-id="about-this-guide"><span class="header-section-number">1.2</span> About this guide</h2>
 <p>This guide provides a step-by-step walkthrough of using geospatial data to perform small area estimation in R. Its development was supported by ESCAP’s project on Big Data for Official Statistics, funded by the 2030 Agenda Sub-Fund of the UN Peace and Development Trust Fund, as well as the project on Agile and Resilient Statistical Systems under the 14th tranche of the UN Development Account.</p>
+
+<video
+  controls
+  style="width:100%; max-width: 960px;"
+  preload="metadata"
+>
+  <source src="https://github.com/ESCAP-SD/geospatialSAEhowto/releases/download/SAE-video/BGM%2BSAE.How-to.Guide.Video.mp4" type="video/mp4">
+</video>  
+  
 <p>The guide is designed to complement the Primer mentioned above by focusing on the practical aspects of implementation. To support hands-on learning, code chunks are included throughout. Readers are encouraged to copy and run the code to run on their own computer while following the guide. To facilitate this, it is recommended to use this interactive HTML version of the guide. On the interactive version, you can click to copy code chunks and then insert them directly into your R console or script. The GitHub repository also contains all the necessary data.</p>
 <p>Throughout this guide, we will be using data from Northern Malawi. The survey data come from the <a href="https://microdata.worldbank.org/index.php/catalog/3818">Fifth Integrated Household Survey (IHS5)</a>, which is only considered representative at the district (admin 2) level. Our final goal will be to estimate poverty at the admin 3 level for Northern Malawi, which is not possible with the raw survey data – many admin 3 areas have no survey observations at all and those that do tend to have a small sample size.</p>
 <p>To do this, we have three different options. First, we could estimate the model at the household level, connecting the survey data to the geospatial data. Second, we could estimate the model at the admin 4 (enumeration area (EA) in the case of Malawi) level, aggregating the survey data to the admin 4 level and pulling geospatial data at the same level. A final option is to create a grid that covers all of Northern Malawi, and aggregate all data to the grid level in order to estimate poverty. By the end of this guide, we hope you have the tools in order to estimate any one of the three options.</p>
