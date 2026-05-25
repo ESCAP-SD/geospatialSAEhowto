@@ -49,7 +49,7 @@ This guide provides a step-by-step walkthrough of using geospatial data to perfo
 
 The guide is designed to complement the Primer mentioned above by focusing on the practical aspects of implementation. To support hands-on learning, code chunks are included throughout. This repository also contains all the necessary data. 
 
-Readers are encouraged to copy and run the code to run on their own computer while following the guide. To facilitate this, an [interactive HTML version of this guide](https://escap-sd.github.io/geospatialSAEhowto/) is available. On the interactive version, you can click to copy code chunks and then insert them directly into your R console or script. A [Russian translation](howtoSAE_RUS.pdf) of the guide is also available.  
+Readers are encouraged to copy and run the code to run on their own computer while following the guide. To facilitate this, an [interactive HTML version of this guide](https://escap-sd.github.io/geospatialSAEhowto/) is available. On the interactive version, you can click to copy code chunks and then insert them directly into your R console or script. Также доступен [перевод руководства на русский язык](howtoSAE_RUS.pdf).
 
 Throughout this guide, we will be using data from Northern Malawi[^2]. The survey data come from the [Fifth Integrated Household Survey (IHS5)](https://microdata.worldbank.org/index.php/catalog/3818), which is only considered representative at the district (admin 2) level. Our final goal will be to estimate poverty at the admin 3 level for Northern Malawi, which is not possible with the raw survey data – many admin 3 areas have no survey observations at all and those that do tend to have a small sample size.
 
